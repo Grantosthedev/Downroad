@@ -94,7 +94,7 @@ jobs:
         run: |
           RELEASE_TAG="v$(node -p "require('./package.json').version")"
           DRAFT_TAG=$(gh release list --limit 10 --json tagName,isDraft,name \
-            --jq ".[] | select(.isDraft == true and .name == \"$RELEASE_TAG\") | .tagName" -r | head -1)
+            --jq ".[] | select(.isDraft == true and .name == \"$RELEASE_TAG\") | .tagName" | head -1)
           if [ -n "$DRAFT_TAG" ]; then
             gh release edit "$DRAFT_TAG" --tag "$RELEASE_TAG" --draft=false
           else
