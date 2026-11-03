@@ -1,8 +1,13 @@
 # Downroad
 
-A macOS desktop app for downloading videos and images from YouTube, Instagram, and TikTok. Set in/out points, choose quality, and download clips without fetching the full video.
+**macOS YouTube, Instagram & TikTok downloader** · clip ranges, quality picker, auto-updates.
 
-Built with Electron, yt-dlp, and ffmpeg.
+Downroad is a free desktop app for Mac that downloads videos and images from **YouTube**, **Instagram** (reels, carousels, photos), and **TikTok**. Set in/out points, choose quality, and download only the segment you need instead of the full file.
+
+- **Website:** [grantosthedev.github.io/Downroad](https://grantosthedev.github.io/Downroad/)
+- **Download (macOS):** [Latest GitHub Release](https://github.com/Grantosthedev/Downroad/releases/latest)
+
+Built with Electron, yt-dlp, and ffmpeg. Open source under MIT.
 
 ## Features
 
