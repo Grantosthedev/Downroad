@@ -7,6 +7,8 @@ const path = require('node:path');
 const {
   buildDownloadArgs,
   buildInfoArgs,
+  chooseInstagramFileUrl,
+  chooseInstagramVideoUrl,
   contextualizeDiagnosis,
   diagnoseYtdlpError,
   youtubeRuntimeArgs,
@@ -136,6 +138,26 @@ test('adds automatic recovery arguments only to YouTube operations', (t) => {
   assert.ok(youtubeArgs.includes('/tmp/plugins'));
   assert.ok(youtubeArgs.includes('youtube:player_client=mweb'));
   assert.equal(instagramArgs.includes('/tmp/plugins'), false);
+});
+
+test('does not download a Reel cover when the file URL is a photo', () => {
+  const coverOnly = {
+    url: 'https://cdninstagram.com/reel-cover.jpg',
+    thumbnail: 'https://cdninstagram.com/reel-cover.jpg',
+    duration: 5,
+    ext: 'jpg',
+  };
+  assert.equal(chooseInstagramVideoUrl(coverOnly), '');
+  assert.equal(chooseInstagramFileUrl(coverOnly), 'https://cdninstagram.com/reel-cover.jpg');
+
+  const withVideo = {
+    ...coverOnly,
+    formats: [
+      { url: 'https://cdninstagram.com/reel-cover.jpg', ext: 'jpg', vcodec: 'none' },
+      { url: 'https://cdninstagram.com/reel-video.mp4', ext: 'mp4', vcodec: 'avc1' },
+    ],
+  };
+  assert.equal(chooseInstagramFileUrl(withVideo), 'https://cdninstagram.com/reel-video.mp4');
 });
 
 test('reports a final playback rejection without asking for cookies', () => {

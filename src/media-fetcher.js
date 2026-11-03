@@ -4,7 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const { normalizeInstagramURL, sanitizeFilename } = require('./utils');
 
-const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+const IG_DOCUMENT_HEADERS = {
+  'User-Agent': BROWSER_UA,
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+};
 const IG_APP_ID = '936619743392459';
 const USER_AGENT = BROWSER_UA;
 const REQUEST_TIMEOUT = 20000;
@@ -85,7 +93,7 @@ function httpGet(url, options = {}) {
         res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
           const body = Buffer.concat(chunks).toString('utf-8');
-          resolve(options.returnResponse ? { body, headers: res.headers } : body);
+          resolve(options.returnResponse ? { body, headers: res.headers, finalUrl: targetUrl } : body);
         });
         res.on('error', reject);
       });
@@ -107,8 +115,10 @@ function httpGet(url, options = {}) {
    ============================================================ */
 
 function extractShortcode(url) {
-  const m = url.match(/instagram\.com\/(?:p|reel|reels|tv|share)\/([A-Za-z0-9_-]+)/);
-  return m ? m[1] : null;
+  const media = String(url || '').match(/instagram\.com\/(?:[\w.-]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i);
+  if (media && !/^audio$/i.test(media[1])) return media[1];
+  const share = String(url || '').match(/instagram\.com\/share\/(?:reel|p|tv)\/([A-Za-z0-9_-]+)/i);
+  return share ? share[1] : null;
 }
 
 function isInstagramVideoUrl(url) {
@@ -116,7 +126,8 @@ function isInstagramVideoUrl(url) {
     const parsed = new URL(url);
     const isInstagramHost = parsed.hostname === 'instagram.com' ||
       parsed.hostname.endsWith('.instagram.com');
-    return isInstagramHost && /^\/(?:reel|reels|tv)\//i.test(parsed.pathname);
+    if (!isInstagramHost) return false;
+    return /\/(?:reel|reels|tv)\//i.test(parsed.pathname) && !/\/reels\/audio\//i.test(parsed.pathname);
   } catch {
     return false;
   }
@@ -257,6 +268,115 @@ async function fetchEmbedData(shortcode) {
   };
 }
 
+function bestDashVideoUrl(manifest) {
+  if (!manifest || typeof manifest !== 'string') return '';
+  let bestUrl = '';
+  let bestBandwidth = -1;
+  const reps = manifest.matchAll(/<Representation\b([^>]*)>([\s\S]*?)<\/Representation>/gi);
+  for (const rep of reps) {
+    if (!/mimeType="video\//i.test(rep[1])) continue;
+    const bandwidth = Number((rep[1].match(/bandwidth="(\d+)"/i) || [])[1] || 0);
+    const rawUrl = (rep[2].match(/<BaseURL>([^<]+)<\/BaseURL>/i) || [])[1];
+    if (!rawUrl || bandwidth < bestBandwidth) continue;
+    bestBandwidth = bandwidth;
+    bestUrl = decodeHtmlEntities(rawUrl);
+  }
+  return bestUrl;
+}
+
+function isEmbeddedMediaNode(node) {
+  return Boolean(
+    node &&
+    typeof node === 'object' &&
+    !Array.isArray(node) &&
+    typeof node.code === 'string' &&
+    (node.media_type != null || node.product_type || node.video_versions || node.carousel_media),
+  );
+}
+
+function collectEmbeddedMedia(value, found, depth) {
+  if (!value || depth > 20) return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectEmbeddedMedia(item, found, depth + 1);
+    return;
+  }
+  if (typeof value !== 'object') return;
+  if (value.if_not_gated_logged_out && isEmbeddedMediaNode(value.if_not_gated_logged_out)) {
+    found.push(value.if_not_gated_logged_out);
+  } else if (isEmbeddedMediaNode(value)) {
+    found.push(value);
+  }
+  for (const child of Object.values(value)) collectEmbeddedMedia(child, found, depth + 1);
+}
+
+function embeddedResultIsVideo(result) {
+  return Boolean(result?._videoPost || result?.items?.some(item => item.type === 'video' && item.url));
+}
+
+function parseEmbeddedInstagramMedia(html, shortcode) {
+  if (!html || typeof html !== 'string') return null;
+  const products = [];
+  const scripts = html.matchAll(/<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi);
+  for (const script of scripts) {
+    try {
+      collectEmbeddedMedia(JSON.parse(script[1]), products, 0);
+    } catch {
+      /* Instagram also ships non-JSON script tags with this type. */
+    }
+  }
+  if (products.length === 0) return null;
+  const product = shortcode
+    ? products.find(node => node.code === shortcode)
+    : products[0];
+  if (!product) return null;
+  const parsed = parseGraphqlMedia(product);
+  if (!parsed) return null;
+  const videoPost = Number(product.media_type) === 2 ||
+    product.product_type === 'clips' ||
+    product.product_type === 'igtv' ||
+    embeddedResultIsVideo(parsed);
+  if (videoPost && !embeddedResultIsVideo(parsed)) {
+    return {
+      isCarousel: false,
+      owner: parsed.owner,
+      caption: parsed.caption,
+      timestamp: parsed.timestamp,
+      items: [],
+      _videoPost: true,
+      errorCode: 'instagram-reel-video-unavailable',
+    };
+  }
+  return parsed;
+}
+
+async function resolveInstagramTarget(url, httpGetter) {
+  const normalized = normalizeInstagramURL(url);
+  let parsed;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    return { url: normalized, pageHtml: '' };
+  }
+  if (!/^\/share\//i.test(parsed.pathname) || typeof httpGetter !== 'function') {
+    return { url: normalized, pageHtml: '' };
+  }
+
+  try {
+    const response = await httpGetter(normalized, {
+      returnResponse: true,
+      timeout: 15000,
+      headers: IG_DOCUMENT_HEADERS,
+    });
+    const body = typeof response === 'string' ? response : (response?.body || '');
+    const finalUrl = response && typeof response === 'object' ? response.finalUrl : '';
+    const ogUrl = body ? parseOgTags(body)['og:url'] : '';
+    const resolved = normalizeInstagramURL(ogUrl || finalUrl || normalized);
+    return { url: resolved, pageHtml: body };
+  } catch {
+    return { url: normalized, pageHtml: '' };
+  }
+}
+
 /* ============================================================
    GraphQL media parser (shared by GraphQL + legacy JSON paths)
    ============================================================ */
@@ -275,11 +395,22 @@ function parseGraphqlMedia(media) {
   function parseItem(node) {
     if (!node || typeof node !== 'object') return null;
     const mediaType = Number(node.media_type);
-    const isVideo = node.is_video === true || mediaType === 2 || /Video$/i.test(node.__typename || '');
-    const imageCandidates = node.image_versions2?.candidates || [];
-    const videoVersions = node.video_versions || [];
-    const displayUrl = node.display_url || imageCandidates[0]?.url || '';
-    const videoUrl = node.video_url || videoVersions[0]?.url || '';
+    const productType = String(node.product_type || '');
+    const imageCandidates = [...(node.image_versions2?.candidates || [])]
+      .filter(candidate => candidate?.url)
+      .sort((a, b) => (b.width || 0) - (a.width || 0));
+    const videoVersions = [...(node.video_versions || [])]
+      .filter(version => version?.url)
+      .sort((a, b) => (b.width || 0) - (a.width || 0) || (b.type || 0) - (a.type || 0));
+    const displayUrl = node.display_url || node.display_uri || imageCandidates[0]?.url || '';
+    const videoUrl = node.video_url || videoVersions[0]?.url || bestDashVideoUrl(node.video_dash_manifest);
+    const isVideo = node.is_video === true ||
+      mediaType === 2 ||
+      productType === 'clips' ||
+      productType === 'igtv' ||
+      videoVersions.length > 0 ||
+      Boolean(node.video_url) ||
+      /Video$/i.test(node.__typename || '');
     const dimensions = node.dimensions || {};
     const item = {
       type: isVideo ? 'video' : 'image',
@@ -394,14 +525,7 @@ async function extractSessionTokens(shortcode) {
     const response = await httpGet(pageUrl, {
       timeout: 10000,
       returnResponse: true,
-      headers: {
-        'User-Agent': BROWSER_UA,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
-      },
+      headers: IG_DOCUMENT_HEADERS,
     });
     const html = response.body;
 
@@ -516,67 +640,106 @@ async function fetchGraphqlPost(shortcode) {
 /* ============================================================
    Main entry point: multi-layer media extraction
 
-   Layer 1: GraphQL /graphql/query (fast, no auth needed)
-   Layer 2: yt-dlp (handles videos, images, AND carousels)
-   Layer 3: Embed page (only shows first carousel image)
-   Layer 4: OG meta tags (always available, single item only)
+   Layer 1: Video file embedded in the post page
+   Layer 2: GraphQL /graphql/query
+   Layer 3: yt-dlp
+   Layer 4: Embed page (only shows first carousel image)
+   Layer 5: OG meta tags (single item only)
+   A Reel is never saved from its cover image.
    ============================================================ */
 
 async function fetchMediaInfo(url, dependencies = {}) {
   try {
-    const fetchUrl = normalizeInstagramURL(url);
-    const shortcode = extractShortcode(fetchUrl);
-    const requiresVideo = isInstagramVideoUrl(fetchUrl);
     const graphqlFetcher = dependencies.fetchGraphqlPost || fetchGraphqlPost;
     const ytdlpFetcher = Object.prototype.hasOwnProperty.call(dependencies, 'ytdlpFetcher')
       ? dependencies.ytdlpFetcher
       : _ytdlpFetcher;
     const embedFetcher = dependencies.fetchEmbedData || fetchEmbedData;
     const httpGetter = dependencies.httpGet || httpGet;
-    const requestedContentType = isInstagramVideoUrl(fetchUrl) ? 'video' : null;
-    let pageHtml = '';
+    const resolved = await resolveInstagramTarget(url, httpGetter);
+    let fetchUrl = resolved.url;
+    let shortcode = extractShortcode(fetchUrl);
+    let postIsVideo = isInstagramVideoUrl(fetchUrl);
+    let pageHtml = resolved.pageHtml || '';
 
-    // Layer 1: GraphQL POST with dynamic lsd + multi-doc_id (fastest)
+    function videoConstraint() {
+      return postIsVideo ? 'video' : null;
+    }
+
+    function takeEmbedded() {
+      const embedded = parseEmbeddedInstagramMedia(pageHtml, shortcode);
+      if (embedded?._videoPost) postIsVideo = true;
+      if (embedded && !embedded.isCarousel && embedded.items?.some(item => item.type === 'video' && item.url)) {
+        postIsVideo = true;
+      }
+      if (!isUsableMediaResult(embedded, postIsVideo)) return null;
+      return constrainResultToContentType(embedded, embedded.isCarousel ? null : videoConstraint()) || embedded;
+    }
+
+    let embeddedResult = takeEmbedded();
+    if (embeddedResult) return embeddedResult;
+
+    // The post page already contains the video file. Read that before the
+    // older GraphQL doc IDs, which currently reject anonymous requests.
+    if (!pageHtml && shortcode && !dependencies.fetchGraphqlPost) {
+      try {
+        const session = await extractSessionTokens(shortcode);
+        pageHtml = session.html || '';
+      } catch {
+        pageHtml = '';
+      }
+      embeddedResult = takeEmbedded();
+      if (embeddedResult) return embeddedResult;
+    }
+
+    // Layer 2: GraphQL. Its page HTML is also where the current video file lives.
     if (shortcode) {
       try {
         const gql = await graphqlFetcher(shortcode);
-        pageHtml = gql.pageHtml || '';
-        const result = constrainResultToContentType(gql.result, requestedContentType);
-        if (isUsableMediaResult(result, requiresVideo)) {
-          return result;
-        }
-        if (requiresVideo && gql.result) {
+        pageHtml = gql.pageHtml || pageHtml;
+        embeddedResult = takeEmbedded();
+        if (embeddedResult) return embeddedResult;
+        const result = constrainResultToContentType(gql.result, videoConstraint());
+        if (isUsableMediaResult(result, postIsVideo)) return result;
+        if (postIsVideo && gql.result) {
           console.log('[ig-media] GraphQL returned only a reel thumbnail; continuing to video extraction');
         }
       } catch { /* continue */ }
     }
 
-    // Layer 2: yt-dlp (handles videos, images, AND carousels reliably)
+    // Layer 3: yt-dlp
     if (ytdlpFetcher) {
       try {
         const ytdlpResult = await ytdlpFetcher(fetchUrl);
-        const result = constrainResultToContentType(ytdlpResult, requestedContentType);
-        if (isUsableMediaResult(result, requiresVideo)) return result;
+        const result = constrainResultToContentType(ytdlpResult, videoConstraint());
+        if (isUsableMediaResult(result, postIsVideo)) return result;
       } catch { /* continue */ }
     }
 
-    // Fetch page HTML if we don't have it yet (for embed/OG fallbacks)
     if (!pageHtml) {
       try {
-        pageHtml = await httpGetter(fetchUrl);
+        const fetched = await httpGetter(fetchUrl, { headers: IG_DOCUMENT_HEADERS });
+        pageHtml = typeof fetched === 'string' ? fetched : (fetched?.body || '');
+        if (!shortcode && fetched?.finalUrl) {
+          fetchUrl = normalizeInstagramURL(fetched.finalUrl);
+          shortcode = extractShortcode(fetchUrl);
+          if (isInstagramVideoUrl(fetchUrl)) postIsVideo = true;
+        }
       } catch {
         pageHtml = '';
       }
+      embeddedResult = takeEmbedded();
+      if (embeddedResult) return embeddedResult;
     }
 
     const ogTags = pageHtml ? parseOgTags(pageHtml) : {};
     const resolvedShortcode = shortcode || extractShortcode(ogTags['og:url'] || '');
     const resolvedVideoUrl = isInstagramVideoUrl(ogTags['og:url'] || '');
-    const contentType = requestedContentType ||
-      (resolvedVideoUrl ? 'video' : null) ||
+    if (resolvedVideoUrl) postIsVideo = true;
+    const contentType = videoConstraint() ||
       (pageHtml ? detectContentType(pageHtml, ogTags) : 'image');
 
-    // Layer 3: Embed page (only returns first image for carousels)
+    // Layer 4: Embed page
     if (resolvedShortcode) {
       try {
         const embedResult = await embedFetcher(resolvedShortcode);
@@ -595,20 +758,20 @@ async function fetchMediaInfo(url, dependencies = {}) {
                 if (!item.thumbnail) item.thumbnail = fallbackThumb;
               }
             }
-            if (isUsableMediaResult(constrainedResult, requiresVideo)) return constrainedResult;
+            if (isUsableMediaResult(constrainedResult, postIsVideo)) return constrainedResult;
           }
         }
       } catch { /* continue */ }
     }
 
-    // Layer 4: OG meta tags
+    // Layer 5: OG meta tags
     const ogResult = buildFromOgTags(ogTags, contentType);
-    if (isUsableMediaResult(ogResult, requiresVideo)) {
+    if (isUsableMediaResult(ogResult, postIsVideo)) {
       ogResult._contentType = contentType;
       return ogResult;
     }
 
-    if (contentType === 'video') {
+    if (postIsVideo || contentType === 'video') {
       return {
         isCarousel: false,
         owner: '',
@@ -755,5 +918,11 @@ module.exports = {
   setYtdlpFetcher,
   isInstagramVideoUrl,
   isUsableMediaResult,
-  _test: { buildFromOgTags, constrainResultToContentType, parseGraphqlMedia },
+  _test: {
+    buildFromOgTags,
+    constrainResultToContentType,
+    extractShortcode,
+    parseEmbeddedInstagramMedia,
+    parseGraphqlMedia,
+  },
 };
