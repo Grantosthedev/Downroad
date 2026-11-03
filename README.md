@@ -30,8 +30,8 @@ Built with Electron, yt-dlp, and ffmpeg.
 
 ```bash
 # Clone the repo
-git clone https://github.com/Grantosthedev/Youtube-Converter.git
-cd Youtube-Converter
+git clone https://github.com/Grantosthedev/Downroad.git
+cd Downroad
 
 # Install dependencies (this also downloads the yt-dlp binary)
 npm install

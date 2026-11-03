@@ -23,7 +23,7 @@ Apply this skill when the user says:
 Run from the project root. Run in the background.
 
 **Option B — Manual steps:**
-1. Kill existing instance: `pkill -f "Youtube-Converter" 2>/dev/null || true; sleep 1`
+1. Kill existing instance: `pkill -f "Downroad" 2>/dev/null || true; sleep 1`
 2. Start the app: `npm start` (from the project root)
 3. Run in the **background** (long-running process).
 

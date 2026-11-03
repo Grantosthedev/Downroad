@@ -88,7 +88,7 @@ module.exports = {
       config: {
         repository: {
           owner: 'Grantosthedev',
-          name: 'Youtube-Converter',
+          name: 'Downroad',
         },
         draft: true,
         prerelease: false,

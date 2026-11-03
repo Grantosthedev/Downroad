@@ -32,7 +32,7 @@ function decodeHtmlEntities(str) {
 const POLARIS_POST_DOC_ID = '27128499623469141';
 const DEFAULT_DOC_IDS = [POLARIS_POST_DOC_ID, '8845758582119845', '9510064595728286', '10015901848480474'];
 const GQL_ENDPOINT = 'https://www.instagram.com/graphql/query';
-const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/Grantosthedev/Youtube-Converter/main/config/instagram-config.json';
+const REMOTE_CONFIG_URL = 'https://raw.githubusercontent.com/Grantosthedev/Downroad/main/config/instagram-config.json';
 const CONFIG_CACHE_MS = 24 * 60 * 60 * 1000;
 
 let _igConfigCache = null;
