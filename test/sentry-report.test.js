@@ -23,6 +23,7 @@ test('classifies expected user and platform failures without reporting noise', (
 
 test('classifies structured engine reasons without relying on user copy', () => {
   assert.equal(classifyReasonCode('login_required', new Error('Verified session required')), 'expected');
+  assert.equal(classifyReasonCode('tiktok_challenge', new Error('TikTok refused the request')), 'expected');
   assert.equal(classifyReasonCode('access_forbidden', new Error('Rejected')), 'platform');
   assert.equal(classifyReasonCode('unknown_engine_error', new Error('Odd failure')), 'bug');
 });
@@ -92,6 +93,10 @@ test('reports only actionable errors with safe tags and context', () => {
   assert.equal(reportError(new Error('Verified session required'), {
     phase: 'fetch-info',
     reasonCode: 'login_required',
+  }), null);
+  assert.equal(reportError(new Error('TikTok refused the request'), {
+    phase: 'fetch-info',
+    reasonCode: 'tiktok_challenge',
   }), null);
   assert.equal(captured.length, 0);
 
