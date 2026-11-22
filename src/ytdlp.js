@@ -102,9 +102,14 @@ function mapError(stderr) {
   return diagnoseYtdlpError(stderr).message;
 }
 
-function reportYtdlpFailure(error, { phase, platform, quality, stderr, diagnosis } = {}) {
+function reportYtdlpFailure(
+  error,
+  { phase, platform, quality, stderr, diagnosis } = {},
+  shouldReport = () => true,
+) {
+  if (!shouldReport()) return null;
   if (stderr) console.error('[yt-dlp] failure tail:', String(stderr).trim().slice(-2000));
-  reportError(error, {
+  return reportError(error, {
     phase,
     platform,
     quality,
@@ -625,7 +630,7 @@ function ensureAacAudio(filePath, ffmpegPath, onProgress) {
   });
 }
 
-function startDownload(options, onProgress, onComplete, onError) {
+function startDownload(options, onProgress, onComplete, onError, shouldReportFailure = () => true) {
   const ytdlp = getYtdlpPath();
   const ffmpegPath = getFfmpegPath();
   const ffmpegDir = path.dirname(ffmpegPath);
@@ -690,7 +695,7 @@ function startDownload(options, onProgress, onComplete, onError) {
         quality: options.quality,
         stderr: stderrBuf,
         diagnosis,
-      });
+      }, shouldReportFailure);
       onError(error.message, diagnosis);
     }
   });
@@ -702,7 +707,7 @@ function startDownload(options, onProgress, onComplete, onError) {
       phase: 'spawn-download',
       platform: options.platform,
       quality: options.quality,
-    });
+    }, shouldReportFailure);
     onError(error.message);
   });
 
@@ -889,6 +894,7 @@ module.exports = {
   fetchInstagramMediaViaYtdlp,
   fetchVideoInfo,
   mapError,
+  reportYtdlpFailure,
   startDownload,
   youtubeRuntimeArgs,
 };

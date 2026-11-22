@@ -32,6 +32,7 @@ const EXPECTED_REASON_CODES = new Set([
   'private_content',
   'rate_limited',
   'region_blocked',
+  'tiktok_challenge',
   'unavailable',
   'unsupported_url',
 ]);

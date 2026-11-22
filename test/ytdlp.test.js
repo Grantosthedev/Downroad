@@ -11,8 +11,10 @@ const {
   chooseInstagramVideoUrl,
   contextualizeDiagnosis,
   diagnoseYtdlpError,
+  reportYtdlpFailure,
   youtubeRuntimeArgs,
 } = require('../src/ytdlp');
+const { configureSentryReporting } = require('../src/sentry-report');
 
 function executable(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'downroad-deno-'));
@@ -164,4 +166,36 @@ test('reports a final playback rejection without asking for cookies', () => {
   const diagnosis = diagnoseYtdlpError('Sign in to confirm you’re not a bot');
   assert.match(contextualizeDiagnosis(diagnosis).message, /automatic recovery/i);
   assert.doesNotMatch(contextualizeDiagnosis(diagnosis).message, /cookie|connect/i);
+});
+
+test('does not report an engine failure after the download is cancelled', (t) => {
+  const captured = [];
+  configureSentryReporting({
+    withScope(callback) {
+      return callback({
+        setLevel() {},
+        setTag() {},
+        setFingerprint() {},
+        setContext() {},
+      });
+    },
+    captureException(error) {
+      captured.push(error);
+      return 'event-id';
+    },
+  });
+  t.after(() => configureSentryReporting(null));
+
+  const result = reportYtdlpFailure(
+    new Error('Child process exited after cancellation'),
+    {
+      phase: 'download',
+      platform: 'youtube',
+      diagnosis: { code: 'unknown_engine_error', httpStatus: null },
+    },
+    () => false,
+  );
+
+  assert.equal(result, null);
+  assert.deepEqual(captured, []);
 });
