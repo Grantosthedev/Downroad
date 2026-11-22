@@ -700,6 +700,7 @@ ipcMain.handle('start-download', async (event, options) => {
         notif.show();
       }
       },
+      () => activeDownloads.get(downloadId)?.cancelled !== true,
     );
     const current = activeDownloads.get(downloadId);
     activeDownloads.set(downloadId, {
