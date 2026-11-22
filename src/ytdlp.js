@@ -135,14 +135,35 @@ function formatHasVideo(format) {
 }
 
 function isInstagramReelUrl(url) {
-  return /instagram\.com\/(?:reel|reels|tv)\//i.test(url);
+  return /instagram\.com\/(?:[\w.-]+\/)?(?:reel|reels|tv)\//i.test(url)
+    && !/\/reels\/audio\//i.test(url);
+}
+
+function isProbablyImageUrl(url) {
+  return /\.(?:jpe?g|png|webp|gif|heic)(?:$|[?#])/i.test(String(url || ''));
+}
+
+function chooseInstagramFileUrl(info) {
+  if (!info || typeof info !== 'object') return '';
+  const formats = [
+    ...(Array.isArray(info.formats) ? info.formats : []),
+    ...(Array.isArray(info.requested_formats) ? info.requested_formats : []),
+  ];
+  const videoFormat = formats.find(format => format?.url && !isProbablyImageUrl(format.url) && formatHasVideo(format));
+  if (videoFormat) return videoFormat.url;
+  return info.url || '';
+}
+
+function chooseInstagramVideoUrl(info) {
+  const fileUrl = chooseInstagramFileUrl(info);
+  return fileUrl && !isProbablyImageUrl(fileUrl) ? fileUrl : '';
 }
 
 function detectMediaType(info, platform, url) {
   if (platform === 'youtube') return 'video';
   if (!info || typeof info !== 'object') return 'image';
-  if (typeof info.duration === 'number' && info.duration > 0) return 'video';
-  if (platform === 'instagram' && isInstagramReelUrl(url)) return 'video';
+  if (typeof info.duration === 'number' && info.duration > 0 && !isProbablyImageUrl(info.url)) return 'video';
+  if (platform === 'instagram' && isInstagramReelUrl(url) && chooseInstagramVideoUrl(info)) return 'video';
 
   const candidateFormats = [
     info,
@@ -723,7 +744,7 @@ function fetchCarouselVideos(url) {
         for (const line of lines) {
           try {
             const info = JSON.parse(line);
-            const videoUrl = info.url || '';
+            const videoUrl = chooseInstagramVideoUrl(info);
             const thumbnail = info.thumbnail || info.thumbnails?.[info.thumbnails.length - 1]?.url || '';
 
             if (videoUrl && detectMediaType(info, 'instagram', fetchUrl) === 'video') {
@@ -812,9 +833,10 @@ function fetchInstagramMediaViaYtdlp(url) {
               timestamp = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
             }
 
-            const isVideo = detectMediaType(info, 'instagram', fetchUrl) === 'video';
             const thumb = info.thumbnail || info.thumbnails?.[info.thumbnails.length - 1]?.url || '';
-            const mediaUrl = info.url || '';
+            const videoUrl = chooseInstagramVideoUrl(info);
+            const mediaUrl = videoUrl || (isInstagramReelUrl(fetchUrl) ? '' : (info.url || ''));
+            const isVideo = Boolean(videoUrl);
 
             if (mediaUrl) {
               items.push({
@@ -858,6 +880,8 @@ function fetchInstagramMediaViaYtdlp(url) {
 module.exports = {
   buildDownloadArgs,
   buildInfoArgs,
+  chooseInstagramFileUrl,
+  chooseInstagramVideoUrl,
   cleanStaleYtdlpTemp,
   contextualizeDiagnosis,
   diagnoseYtdlpError,

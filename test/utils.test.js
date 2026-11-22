@@ -15,6 +15,7 @@ const {
 test('detects supported platforms and rejects unrelated URLs', () => {
   assert.equal(detectPlatform('https://youtu.be/dQw4w9WgXcQ'), 'youtube');
   assert.equal(detectPlatform('https://www.instagram.com/reel/ABC_123/'), 'instagram');
+  assert.equal(detectPlatform('https://www.instagram.com/instagram/reel/Chunk8-jurw/'), 'instagram');
   assert.equal(detectPlatform('https://www.tiktok.com/@creator/video/1234567890'), 'tiktok');
   assert.equal(detectPlatform('https://example.com/video'), null);
   assert.equal(isValidURL('https://example.com/video'), false);
@@ -37,6 +38,14 @@ test('normalizes supported URLs without changing unsupported hosts', () => {
   assert.equal(
     normalizeInstagramURL('https://www.instagram.com/p/DbKz_FIMK3C/?img_index=2&igsh=tracking'),
     'https://www.instagram.com/p/DbKz_FIMK3C/?img_index=2',
+  );
+  assert.equal(
+    normalizeInstagramURL('https://www.instagram.com/instagram/reel/Chunk8-jurw/?igsh=tracking'),
+    'https://www.instagram.com/reel/Chunk8-jurw/',
+  );
+  assert.equal(
+    normalizeInstagramURL('https://www.instagram.com/instagram/reels/Chunk8-jurw/'),
+    'https://www.instagram.com/reel/Chunk8-jurw/',
   );
   assert.equal(
     normalizeTikTokURL('https://www.tiktok.com/@creator/video/7660967336047807758?q=search&t=123#comments'),

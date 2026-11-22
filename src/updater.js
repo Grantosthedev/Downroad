@@ -14,7 +14,7 @@ const {
   releaseAsset,
 } = require('./ytdlp-release');
 
-const APP_REPO_API = 'https://api.github.com/repos/Grantosthedev/Youtube-Converter/releases/latest';
+const APP_REPO_API = 'https://api.github.com/repos/Grantosthedev/Downroad/releases/latest';
 
 const MAX_REDIRECTS = 5;
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;

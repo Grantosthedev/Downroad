@@ -242,7 +242,7 @@ themeToggle?.addEventListener('click', (e) => {
 // SYNC: These regexes are duplicated from src/utils.js for instant UI feedback (no IPC round-trip).
 // If you change them here, update the utils.js copy too.
 const YOUTUBE_URL_REGEX = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-const INSTAGRAM_URL_REGEX = /^https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|reels|tv|stories|share)\/[\w.-]+/;
+const INSTAGRAM_URL_REGEX = /^https?:\/\/(?:www\.)?instagram\.com\/(?:(?:p|reel|reels|tv|stories|share)|[\w.-]+\/(?:p|reel|reels|tv))\/[\w.-]+/;
 const TIKTOK_URL_REGEX = /^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/@[\w.-]+\/(?:video|photo)\/\d+|^https?:\/\/(?:vm|vt)\.tiktok\.com\/[\w]+|^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/t\/[\w]+/;
 
 function isValidYouTubeURL(url) {
@@ -2230,7 +2230,8 @@ function resetVideoState() {
 let lastFailedUrl = '';
 
 function isInstagramReelUrl(url) {
-  return /instagram\.com\/(?:reel|reels|tv)\//i.test(url);
+  return /instagram\.com\/(?:[\w.-]+\/)?(?:reel|reels|tv)\//i.test(url)
+    && !/\/reels\/audio\//i.test(url);
 }
 
 function instagramFetchError(url, mediaInfo) {

@@ -14,7 +14,7 @@ const path = require('path');
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const OWNER = 'Grantosthedev';
-const REPO = 'Youtube-Converter';
+const REPO = 'Downroad';
 
 if (!GITHUB_TOKEN) {
   console.warn('[release-notes] No GITHUB_TOKEN found in .env — skipping.');

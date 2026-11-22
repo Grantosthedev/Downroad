@@ -57,7 +57,7 @@ function setupAutoUpdater() {
   try {
     const { autoUpdater } = require('electron');
     squirrelUpdater = autoUpdater;
-    const feed = `https://update.electronjs.org/Grantosthedev/Youtube-Converter/${process.platform}-${process.arch}/${app.getVersion()}`;
+    const feed = `https://update.electronjs.org/Grantosthedev/Downroad/${process.platform}-${process.arch}/${app.getVersion()}`;
     autoUpdater.setFeedURL({ url: feed });
 
     autoUpdater.on('checking-for-update', () => {

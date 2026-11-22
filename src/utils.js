@@ -5,7 +5,7 @@ const { app } = require('electron');
 // SYNC: These regexes are duplicated in src/renderer/renderer.js for instant UI feedback.
 // If you change them here, update the renderer copy too.
 const YOUTUBE_URL_REGEX = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-const INSTAGRAM_URL_REGEX = /^https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|reels|tv|stories|share)\/[\w.-]+/;
+const INSTAGRAM_URL_REGEX = /^https?:\/\/(?:www\.)?instagram\.com\/(?:(?:p|reel|reels|tv|stories|share)|[\w.-]+\/(?:p|reel|reels|tv))\/[\w.-]+/;
 const TIKTOK_URL_REGEX = /^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/@[\w.-]+\/(?:video|photo)\/\d+|^https?:\/\/(?:vm|vt)\.tiktok\.com\/[\w]+|^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/t\/[\w]+/;
 
 function isValidYouTubeURL(url) {
@@ -46,6 +46,14 @@ function normalizeInstagramURL(url) {
     const parsed = new URL(trimmed);
     if (!/(^|\.)instagram\.com$/i.test(parsed.hostname)) return trimmed;
     parsed.hostname = 'www.instagram.com';
+    parsed.pathname = parsed.pathname.replace(
+      /^\/([\w.-]+)\/(reels?|tv|p)\/([^/?#]+)\/?/i,
+      (match, user, kind, code) => {
+        if (/^(?:p|reel|reels|tv|stories|share)$/i.test(user)) return match;
+        const canonicalKind = /^reels?$/i.test(kind) ? 'reel' : kind.toLowerCase();
+        return `/${canonicalKind}/${code}/`;
+      },
+    );
     parsed.pathname = parsed.pathname.replace(/^\/reels\//i, '/reel/');
     for (const key of [...parsed.searchParams.keys()]) {
       if (key.toLowerCase() === 'igsh' || key.toLowerCase().startsWith('utm_')) {

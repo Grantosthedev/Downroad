@@ -1,7 +1,7 @@
 {
   "name": "downroad",
   "productName": "Downroad",
-  "version": "1.5.5",
+  "version": "1.5.6",
   "description": "Download videos and images from YouTube, Instagram, and TikTok. Set in/out points, choose quality, and download clips without fetching the full video.",
   "main": "src/main.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Grantosthedev/Youtube-Converter.git"
+    "url": "https://github.com/Grantosthedev/Downroad.git"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.1",
