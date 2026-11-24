@@ -82,4 +82,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   getAppUpdateStatus: () => ipcRenderer.invoke('get-app-update-status'),
   installUpdate: () => ipcRenderer.invoke('install-update'),
+  startPhoneAccess: () => ipcRenderer.invoke('phone-access-start'),
+  stopPhoneAccess: () => ipcRenderer.invoke('phone-access-stop'),
+  rotatePhoneAccess: () => ipcRenderer.invoke('phone-access-rotate'),
 });

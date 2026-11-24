@@ -32,6 +32,10 @@ const {
   isYoutubeRecoveryError,
   stopYoutubeRecovery,
 } = require('./youtube-recovery');
+const QRCode = require('qrcode');
+const { listenPhoneServer } = require('./phone/server');
+const { createPhoneEngine } = require('./phone/engine');
+const { decoratePhoneUrl } = require('./phone/policy');
 
 setYtdlpFetcher(fetchInstagramMediaViaYtdlp);
 
@@ -204,6 +208,8 @@ const store = new Store({
     lastYtdlpCheck: 0,
     ytdlpEngineState: {},
     lastCacheCleared: 0,
+    phoneAccessToken: '',
+    phoneAccessPort: 8787,
   },
 });
 
@@ -1173,6 +1179,156 @@ ipcMain.handle('save-file', async (_event, { defaultPath, content }) => {
   return { saved: true, filePath };
 });
 
+// --- Phone access ---
+// The phone is a browser page served by this Mac. YouTube blocks datacenter
+// servers, and the app stores reject downloaders, so the download stays on
+// the machine the user already trusts.
+
+let phoneAccess = null;
+
+function phoneOutputDir() {
+  const basePath = store.get('downloadPath');
+  const activeProject = store.get('activeProject');
+  const subfolders = store.get('projectSubfolders') || {};
+  const useSubfolder = activeProject && subfolders[activeProject] !== false;
+  return useSubfolder ? path.join(basePath, activeProject) : basePath;
+}
+
+function phoneTheme() {
+  const setting = store.get('theme', 'auto');
+  if (setting === 'light' || setting === 'dark') return setting;
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+}
+
+function buildPhoneEngine() {
+  return createPhoneEngine({
+    getOutputDir: phoneOutputDir,
+    onSaved: recordPhoneDownload,
+    fetchVideoInfo: (url, platform) => fetchVideoInfoWithRecovery(url, platform),
+    startDownload,
+    fetchMediaInfo,
+    downloadImage,
+    ensureYoutubeRecovery,
+    isYoutubeRecoveryError,
+    checkDiskSpace,
+    sweepPartials: sweepPartialFiles,
+  });
+}
+
+async function phoneSnapshot() {
+  if (!phoneAccess) {
+    return { running: false, reachable: false, primaryUrl: '', urls: [], qrDataUrl: '', warning: '' };
+  }
+  const snap = phoneAccess.snapshot();
+  const urls = (snap.urls || []).map((url) => decoratePhoneUrl(url, {
+    mode: store.get('mode'),
+    theme: phoneTheme(),
+  }));
+  const primaryUrl = urls[0] || '';
+  let qrDataUrl = '';
+  if (primaryUrl) {
+    qrDataUrl = await QRCode.toDataURL(primaryUrl, {
+      margin: 1,
+      width: 280,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#490504', light: '#FFFFFF' },
+    });
+  }
+  return { ...snap, urls, primaryUrl, qrDataUrl };
+}
+
+async function ensurePhoneAccess() {
+  if (!phoneAccess) {
+    let token = store.get('phoneAccessToken');
+    if (!token || typeof token !== 'string' || token.length < 32) {
+      token = crypto.randomBytes(32).toString('base64url');
+      store.set('phoneAccessToken', token);
+    }
+    try {
+      phoneAccess = await listenPhoneServer({
+        token,
+        engine: buildPhoneEngine(),
+        port: store.get('phoneAccessPort'),
+      });
+    } catch (error) {
+      throw new Error(`Could not open the phone link. ${error.message}`);
+    }
+    store.set('phoneAccessPort', phoneAccess.port);
+  }
+  return phoneSnapshot();
+}
+
+async function stopPhoneAccess() {
+  const current = phoneAccess;
+  phoneAccess = null;
+  if (current) await current.close();
+  return { running: false, reachable: false, primaryUrl: '', urls: [], qrDataUrl: '', warning: '' };
+}
+
+async function rotatePhoneAccess() {
+  await stopPhoneAccess();
+  store.set('phoneAccessToken', '');
+  return ensurePhoneAccess();
+}
+
+function recordPhoneDownload(saved) {
+  const historyEntry = {
+    id: crypto.randomUUID(),
+    videoId: '',
+    title: saved.title || 'Phone download',
+    thumbnail: saved.thumbnail || '',
+    uploader: saved.uploader || '',
+    channel: saved.uploader || '',
+    channelUrl: '',
+    webpageUrl: saved.webpageUrl || '',
+    uploadDate: '',
+    description: '',
+    duration: saved.duration || 0,
+    viewCount: null,
+    likeCount: null,
+    categories: [],
+    tags: [],
+    license: '',
+    quality: saved.quality || 'best',
+    resolution: null,
+    clipStart: saved.clipStart || null,
+    clipEnd: saved.clipEnd || null,
+    filePath: saved.filePath || '',
+    fileSize: saved.fileSize || 0,
+    format: saved.format || 'mp4',
+    downloadedAt: new Date().toISOString(),
+    platform: saved.platform || 'youtube',
+    mediaType: saved.mediaType || 'video',
+    project: store.get('activeProject') || null,
+    source: 'phone',
+  };
+  const history = store.get('downloadHistory') || [];
+  history.unshift(historyEntry);
+  if (history.length > 500) history.length = 500;
+  store.set('downloadHistory', history);
+
+  if (Notification.isSupported()) {
+    const notif = new Notification({
+      title: nt('Phone download landed', 'Saved from your phone', 'PHONE DOWNLOAD DONE.'),
+      body: saved.title || nt('File saved on this Mac and sent to the phone.', 'Saved on this Mac.', 'FILE SAVED.'),
+      silent: false,
+      icon: getStickerIcon('good'),
+    });
+    notif.on('click', () => {
+      if (saved.filePath) shell.showItemInFolder(saved.filePath);
+    });
+    notif.show();
+  }
+
+  if (store.get('showInFinder') && saved.filePath) {
+    shell.showItemInFolder(saved.filePath);
+  }
+}
+
+ipcMain.handle('phone-access-start', () => ensurePhoneAccess());
+ipcMain.handle('phone-access-stop', () => stopPhoneAccess());
+ipcMain.handle('phone-access-rotate', () => rotatePhoneAccess());
+
 // --- App lifecycle ---
 
 const CACHE_CLEAR_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -1289,6 +1445,11 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   stopYoutubeRecovery();
+  if (phoneAccess) {
+    const current = phoneAccess;
+    phoneAccess = null;
+    current.close().catch(() => {});
+  }
   for (const [, entry] of activeDownloads) {
     try { entry.process.kill('SIGTERM'); } catch { /* already dead */ }
     setTimeout(() => {

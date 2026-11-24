@@ -1,6 +1,16 @@
 const path = require('path');
 const fs = require('fs');
-const { app } = require('electron');
+
+function getApp() {
+  if (getApp.cached !== undefined) return getApp.cached;
+  try {
+    const electron = require('electron');
+    getApp.cached = electron && typeof electron === 'object' && electron.app ? electron.app : null;
+  } catch {
+    getApp.cached = null;
+  }
+  return getApp.cached;
+}
 
 // SYNC: These regexes are duplicated in src/renderer/renderer.js for instant UI feedback.
 // If you change them here, update the renderer copy too.
@@ -93,18 +103,18 @@ function sanitizeFilename(name) {
 }
 
 function getResourcePath(...segments) {
-  if (app.isPackaged) {
+  if (getApp().isPackaged) {
     return path.join(process.resourcesPath, ...segments);
   }
   return path.join(__dirname, '..', ...segments);
 }
 
 function getUserBinDir() {
-  return path.join(app.getPath('userData'), 'bin');
+  return path.join(getApp().getPath('userData'), 'bin');
 }
 
 function getBundledYtdlpPath() {
-  if (app.isPackaged) {
+  if (getApp().isPackaged) {
     return path.join(process.resourcesPath, 'yt-dlp_macos');
   }
   const gzPath = path.join(__dirname, '..', 'bin', 'yt-dlp_macos.gz');
@@ -122,7 +132,7 @@ function getYtdlpPath() {
     fs.accessSync(userPath, fs.constants.X_OK);
     return userPath;
   } catch {
-    if (!app.isPackaged) {
+    if (!getApp().isPackaged) {
       const devPath = path.join(__dirname, '..', 'bin', 'yt-dlp_macos');
       try {
         fs.accessSync(devPath, fs.constants.X_OK);
@@ -135,35 +145,35 @@ function getYtdlpPath() {
 
 function getFfmpegPath() {
   const staticPath = require('ffmpeg-static');
-  if (app.isPackaged) {
+  if (getApp().isPackaged) {
     return staticPath.replace('app.asar', 'app.asar.unpacked');
   }
   return staticPath;
 }
 
 function getDenoPath() {
-  if (app?.isPackaged) {
+  if (getApp()?.isPackaged) {
     return path.join(process.resourcesPath, 'deno');
   }
   return path.join(__dirname, '..', 'bin', 'deno');
 }
 
 function getPotProviderPath() {
-  if (app?.isPackaged) {
+  if (getApp()?.isPackaged) {
     return path.join(process.resourcesPath, 'bgutil-pot');
   }
   return path.join(__dirname, '..', 'bin', 'bgutil-pot');
 }
 
 function getYtdlpPluginDir() {
-  if (app?.isPackaged) {
+  if (getApp()?.isPackaged) {
     return path.join(process.resourcesPath, 'yt-dlp-plugins');
   }
   return path.join(__dirname, '..', 'bin', 'yt-dlp-plugins');
 }
 
 function getRuntimeManifestPath() {
-  if (app?.isPackaged) {
+  if (getApp()?.isPackaged) {
     return path.join(process.resourcesPath, 'runtime-manifest.json');
   }
   return path.join(__dirname, '..', 'bin', 'runtime-manifest.json');

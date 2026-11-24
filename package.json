@@ -1,7 +1,7 @@
 {
   "name": "downroad",
   "productName": "Downroad",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "description": "Download videos and images from YouTube, Instagram, and TikTok. Set in/out points, choose quality, and download clips without fetching the full video.",
   "main": "src/main.js",
   "scripts": {
@@ -38,6 +38,7 @@
   "dependencies": {
     "@sentry/electron": "^7.15.0",
     "electron-store": "^8.2.0",
-    "ffmpeg-static": "^5.3.0"
+    "ffmpeg-static": "^5.3.0",
+    "qrcode": "^1.5.4"
   }
 }

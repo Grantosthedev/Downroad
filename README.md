@@ -21,6 +21,7 @@ Built with Electron, yt-dlp, and ffmpeg. Open source under MIT.
 - **Drag & drop** — drop a link onto the app window
 - **macOS notifications** — get notified when downloads complete
 - **No dependencies** — everything is bundled in the app
+- **On your phone**: open a link from the Mac app. Same Wi-Fi, nothing to install
 
 ## Installation (for coworkers)
 
@@ -30,6 +31,20 @@ Built with Electron, yt-dlp, and ffmpeg. Open source under MIT.
    - Right-click the app and select **Open**
    - Click **Open** in the dialog that appears
    - This is a one-time step (macOS blocks unsigned apps by default)
+
+## On your phone
+
+Downroad stays on the Mac. The phone is only the screen.
+
+1. Open Downroad on the Mac.
+2. Tap the phone button.
+3. Scan the code. The phone and the Mac have to be on the same Wi-Fi.
+
+Nothing is installed on the phone. There is no App Store app and no terminal setup. The Mac downloads the video, then the phone saves the file. The same link keeps working until you tap New code, including after you quit and reopen Downroad.
+
+A public website cannot do this job reliably. YouTube blocks download servers in data centers, and the phone itself cannot run the download engine. The Mac is already on a normal connection, so the phone uses that.
+
+If macOS asks, allow incoming connections. That prompt is the only extra step.
 
 ## Development Setup
 

@@ -1564,6 +1564,129 @@ input, button {
    Settings — Fixed top-right, left of queue button
    ============================================================ */
 
+.phone-anchor {
+  position: fixed;
+  top: 16px;
+  right: 124px;
+  z-index: 12;
+  -webkit-app-region: no-drag;
+}
+
+.phone-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--red-dark);
+  color: var(--red-bright);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 250ms var(--spring),
+    background 200ms var(--ease);
+}
+
+.phone-btn:hover { transform: scale(1.05); }
+.phone-btn:active { transform: scale(0.95); }
+
+.phone-btn__dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  pointer-events: none;
+}
+
+.phone-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: var(--red-dark);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  opacity: 0;
+  transform: scale(0.85) translateY(-8px);
+  transform-origin: top right;
+  pointer-events: none;
+  transition:
+    opacity 200ms var(--ease),
+    transform 350ms var(--spring);
+}
+
+.phone-popover.open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+
+.phone-popover__title {
+  font-size: 14px;
+  color: var(--red-bright);
+}
+
+.phone-popover__copy,
+.phone-popover__note,
+.phone-popover__warning {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--red-bright);
+}
+
+.phone-popover__warning { color: var(--color-warning); }
+
+.phone-popover__qr {
+  width: 180px;
+  height: 180px;
+  align-self: center;
+  border-radius: var(--radius-sm);
+  background: var(--white);
+}
+
+.phone-popover__url {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--white);
+  font-size: 11px;
+  user-select: text;
+}
+
+.phone-popover__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.phone-popover__btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--red-bright);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.phone-popover__btn--quiet {
+  background: transparent;
+  color: var(--red-bright);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red-bright) 45%, transparent);
+}
+
+.phone-popover__btn:active { transform: scale(0.96); }
+
 .settings-anchor {
   position: fixed;
   top: 16px;
@@ -4538,6 +4661,13 @@ html.light-mode {
 }
 
 /* ---- White text that now sits on the pink containers ---- */
+html.light-mode .phone-popover__url {
+  background: rgba(0, 0, 0, 0.06);
+  color: #111;
+}
+html.light-mode .phone-popover__btn { color: #fff; }
+html.light-mode .phone-popover__btn--quiet { color: var(--red-bright); }
+
 html.light-mode .settings-label { color: var(--red-bright); }
 html.light-mode .settings-about__version,
 html.light-mode .settings-about__sep {

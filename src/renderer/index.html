@@ -133,6 +133,27 @@
     <!-- Settings backdrop (covers drag region for click-outside dismiss) -->
     <div id="settingsBackdrop" class="settings-backdrop"></div>
 
+    <!-- Phone link (fixed top, left of settings) -->
+    <div class="phone-anchor">
+      <button id="phoneBtn" class="phone-btn" type="button" aria-label="Use on your phone" data-tooltip="Open Downroad on a phone. Same Wi-Fi, nothing to install.">
+        <i class="hgi-stroke hgi-smart-phone-01 ui-icon ui-icon--button" aria-hidden="true"></i>
+        <span id="phoneDot" class="phone-btn__dot" hidden></span>
+      </button>
+      <div id="phonePopover" class="phone-popover">
+        <span class="phone-popover__title">Use it on your phone</span>
+        <p id="phoneCopy" class="phone-popover__copy">Same Wi-Fi. Scan this. Nothing to install.</p>
+        <img id="phoneQr" class="phone-popover__qr" alt="QR code for the phone link" hidden>
+        <input id="phoneUrl" class="phone-popover__url" readonly aria-label="Phone link">
+        <p id="phoneWarning" class="phone-popover__warning" hidden></p>
+        <div class="phone-popover__actions">
+          <button id="phoneCopyBtn" class="phone-popover__btn" type="button">Copy link</button>
+          <button id="phoneRotateBtn" class="phone-popover__btn phone-popover__btn--quiet" type="button">New code</button>
+          <button id="phoneStopBtn" class="phone-popover__btn phone-popover__btn--quiet" type="button">Turn off</button>
+        </div>
+        <p class="phone-popover__note">Your Mac does the ripping. The file lands on the phone. If macOS asks, allow incoming connections. Closing this panel is fine. The link stays until you tap New code.</p>
+      </div>
+    </div>
+
     <!-- Settings gear (fixed bottom-left) -->
     <div class="settings-anchor">
       <button id="settingsBtn" class="settings-btn" aria-label="Settings">
@@ -222,7 +243,7 @@
           <span class="help-chip">tiktok</span>
           <span class="help-chip help-chip--secret" id="yaMumChip" style="display:none">ya mum</span>
         </div>
-        <span class="help-popover__disclaimer">paste a link · pick a quality · rip it. clip any section with the time inputs. audio-only mode strips the video. projects keep your downloads organised. no affiliation with any platform listed above.</span>
+        <span class="help-popover__disclaimer">paste a link · pick a quality · rip it. clip any section with the time inputs. audio-only mode strips the video. projects keep your downloads organised. on a phone: tap the phone button, same Wi-Fi, nothing to install. no affiliation with any platform listed above.</span>
       </div>
     </div>
 
