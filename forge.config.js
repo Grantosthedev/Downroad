@@ -36,6 +36,9 @@ module.exports = {
       /\.js\.map$/,
       /\/CHANGELOG(\.md)?$/i,
     ],
+    extendInfo: {
+      NSLocalNetworkUsageDescription: 'Downroad opens a link so a phone on the same Wi-Fi can use it. Nothing is installed on the phone.',
+    },
     osxSign: {
       identity: process.env.APPLE_SIGNING_IDENTITY || 'Developer ID Application',
       hardenedRuntime: true,

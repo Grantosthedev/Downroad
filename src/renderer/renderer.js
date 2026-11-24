@@ -33,6 +33,8 @@ const state = {
   historyProjectFilter: null,
   helpOpen: false,
   theme: 'auto',
+  phoneOpen: false,
+  phoneUrl: '',
 };
 
 /* ============================================================
@@ -71,6 +73,16 @@ const statusIcon = $('#statusIcon');
 const statusText = $('#statusText');
 const dropOverlay = $('#dropOverlay');
 const settingsBtn = $('#settingsBtn');
+const phoneBtn = $('#phoneBtn');
+const phonePopover = $('#phonePopover');
+const phoneQr = $('#phoneQr');
+const phoneUrl = $('#phoneUrl');
+const phoneWarning = $('#phoneWarning');
+const phoneDot = $('#phoneDot');
+const phoneCopy = $('#phoneCopy');
+const phoneCopyBtn = $('#phoneCopyBtn');
+const phoneRotateBtn = $('#phoneRotateBtn');
+const phoneStopBtn = $('#phoneStopBtn');
 const settingsPopover = $('#settingsPopover');
 const settingsBackdrop = $('#settingsBackdrop');
 const autoPasteToggle = $('#autoPasteToggle');
@@ -1379,6 +1391,7 @@ function openQueue() {
   closeSettings();
   closeProjectDropdown();
   closeHelp();
+  closePhone();
   closeQualityDropdown();
 }
 
@@ -1709,6 +1722,7 @@ function openSettings() {
   closeQueue();
   closeProjectDropdown();
   closeHelp();
+  closePhone();
   closeQualityDropdown();
   settingsPopover.classList.add('open');
   settingsBackdrop.classList.add('visible');
@@ -1718,8 +1732,8 @@ function openSettings() {
 function closeSettings() {
   state.settingsOpen = false;
   settingsPopover.classList.remove('open');
-  settingsBackdrop.classList.remove('visible');
   settingsBtn.closest('.settings-anchor').classList.remove('open');
+  if (!state.helpOpen && !state.phoneOpen) settingsBackdrop.classList.remove('visible');
 }
 
 function toggleSettings() {
@@ -1733,7 +1747,64 @@ function toggleSettings() {
 settingsBackdrop.addEventListener('click', () => {
   closeSettings();
   closeHelp();
+  closePhone();
 });
+
+function openPhone() {
+  state.phoneOpen = true;
+  closeSettings();
+  closeQueue();
+  closeProjectDropdown();
+  closeHelp();
+  closeQualityDropdown();
+  phonePopover.classList.add('open');
+  phoneBtn.closest('.phone-anchor').classList.add('open');
+  settingsBackdrop.classList.add('visible');
+  refreshPhoneLink();
+}
+
+function closePhone() {
+  state.phoneOpen = false;
+  phonePopover.classList.remove('open');
+  phoneBtn.closest('.phone-anchor').classList.remove('open');
+  if (!state.settingsOpen && !state.helpOpen) {
+    settingsBackdrop.classList.remove('visible');
+  }
+}
+
+function renderPhoneLink(status) {
+  const running = Boolean(status && status.running);
+  phoneDot.hidden = !running;
+  phoneUrl.value = status?.primaryUrl || '';
+  state.phoneUrl = phoneUrl.value;
+  if (status?.qrDataUrl) {
+    phoneQr.hidden = false;
+    phoneQr.src = status.qrDataUrl;
+  } else {
+    phoneQr.hidden = true;
+    phoneQr.removeAttribute('src');
+  }
+  if (status?.warning) {
+    phoneWarning.hidden = false;
+    phoneWarning.textContent = status.warning;
+    phoneCopy.textContent = status.warning;
+  } else if (running) {
+    phoneWarning.hidden = true;
+    phoneWarning.textContent = '';
+    phoneCopy.textContent = 'Same Wi-Fi. Scan this. Nothing to install.';
+  }
+}
+
+async function refreshPhoneLink() {
+  phoneCopy.textContent = 'Starting the phone link...';
+  try {
+    renderPhoneLink(await window.api.startPhoneAccess());
+  } catch (error) {
+    phoneWarning.hidden = false;
+    phoneWarning.textContent = error.message || 'Could not start the phone link.';
+    phoneCopy.textContent = 'Could not start the phone link.';
+  }
+}
 
 /* ============================================================
    Help / Supported Services Popover
@@ -1745,6 +1816,7 @@ function openHelp() {
   closeQueue();
   closeProjectDropdown();
   closeQualityDropdown();
+  closePhone();
   helpPopover.classList.add('open');
   settingsBackdrop.classList.add('visible');
 }
@@ -1752,7 +1824,7 @@ function openHelp() {
 function closeHelp() {
   state.helpOpen = false;
   helpPopover.classList.remove('open');
-  if (!state.settingsOpen) {
+  if (!state.settingsOpen && !state.phoneOpen) {
     settingsBackdrop.classList.remove('visible');
   }
 }
@@ -3798,6 +3870,49 @@ settingsBtn.addEventListener('click', (e) => {
   toggleSettings();
 });
 
+phoneBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (state.phoneOpen) closePhone();
+  else openPhone();
+});
+
+phoneCopyBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!state.phoneUrl) return;
+  try {
+    await navigator.clipboard.writeText(state.phoneUrl);
+    phoneCopy.textContent = 'Copied. Open it on your phone.';
+  } catch {
+    phoneUrl.focus();
+    phoneUrl.select();
+    phoneCopy.textContent = 'Select the link and copy it.';
+  }
+});
+
+phoneRotateBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  phoneCopy.textContent = 'Making a new code...';
+  try {
+    renderPhoneLink(await window.api.rotatePhoneAccess());
+  } catch (error) {
+    phoneWarning.hidden = false;
+    phoneWarning.textContent = error.message || 'Could not make a new code.';
+  }
+});
+
+phoneStopBtn.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  try {
+    renderPhoneLink(await window.api.stopPhoneAccess());
+    phoneCopy.textContent = 'Phone link is off.';
+    phoneUrl.value = '';
+    state.phoneUrl = '';
+  } catch (error) {
+    phoneWarning.hidden = false;
+    phoneWarning.textContent = error.message || 'Could not turn the phone link off.';
+  }
+});
+
 autoPasteToggle.addEventListener('click', (e) => {
   e.stopPropagation();
   state.autoPaste = !state.autoPaste;
@@ -5606,6 +5721,10 @@ document.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape' && state.historyOpen) {
     closeHistory();
+    return;
+  }
+  if (e.key === 'Escape' && state.phoneOpen) {
+    closePhone();
     return;
   }
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#120404">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Downroad">
+  <title>Downroad</title>
+  <link rel="icon" href="/assets/icon.png">
+  <link rel="apple-touch-icon" href="/assets/icon.png">
+  <link rel="stylesheet" href="/assets/icons.css">
+  <link rel="stylesheet" href="/phone.css">
+</head>
+<body>
+  <main class="phone">
+    <header class="top">
+      <img class="sticker" src="/assets/sticker.png" alt="" draggable="false">
+      <div class="top__row">
+        <h1>Downroad</h1>
+        <button id="themeBtn" class="icon-btn" type="button" aria-label="Appearance">
+          <i class="hgi-stroke hgi-moon-02 ui-icon" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p id="footnote" class="footnote">Same Wi-Fi as the Mac running Downroad. Nothing to install.</p>
+    </header>
+
+    <p id="banner" class="banner" role="alert" hidden></p>
+
+    <form id="form" class="form">
+      <div class="url-row">
+        <label class="sr-only" for="url">Video link</label>
+        <input id="url" class="url-input" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a link, my ninja">
+        <button id="clearBtn" class="clear-btn" type="button" aria-label="Clear link" hidden>
+          <i class="hgi-stroke hgi-cancel-01 ui-icon" aria-hidden="true"></i>
+        </button>
+      </div>
+      <p id="hint" class="hint">Then check the damn thing.</p>
+
+      <section id="card" class="card" hidden>
+        <img id="thumb" class="card__thumb" alt="">
+        <div class="card__body">
+          <h2 id="title" class="card__title"></h2>
+          <p id="meta" class="card__meta"></p>
+        </div>
+      </section>
+
+      <div id="items" class="items" hidden></div>
+
+      <div id="controls" class="controls" hidden>
+        <div class="times">
+          <label class="time">
+            <span>Start</span>
+            <input id="startTime" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="00:00:00" value="00:00:00">
+          </label>
+          <span class="times__to">to</span>
+          <label class="time">
+            <span>End</span>
+            <input id="endTime" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="00:00:00" value="00:00:00">
+          </label>
+        </div>
+        <div id="qualities" class="qualities" role="radiogroup" aria-label="Quality"></div>
+      </div>
+
+      <button id="goBtn" class="btn-download" type="submit">Check this link</button>
+
+      <section id="job" class="job" hidden>
+        <div class="job__track" aria-hidden="true"><div id="jobFill" class="job__fill"></div></div>
+        <p id="jobText" class="job__text" aria-live="polite"></p>
+        <div class="job__actions">
+          <button id="cancelBtn" class="btn-quiet" type="button">Cancel</button>
+          <a id="saveLink" class="btn-save" hidden>Save to this phone</a>
+        </div>
+      </section>
+    </form>
+  </main>
+  <script src="/phone.js"></script>
+</body>
+</html>

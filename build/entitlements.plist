@@ -14,5 +14,8 @@
   <!-- Required for auto-update (Squirrel.Mac downloads over HTTPS) -->
   <key>com.apple.security.network.client</key>
   <true/>
+  <!-- Required so a phone on the same Wi-Fi can open Downroad -->
+  <key>com.apple.security.network.server</key>
+  <true/>
 </dict>
 </plist>

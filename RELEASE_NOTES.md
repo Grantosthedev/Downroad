@@ -1,5 +1,6 @@
-Instagram Reels download as video again.
+Use Downroad on a phone without installing anything.
 
-- Saves the Reel video instead of the cover photo.
-- Accepts Reel links from posts, profiles, and the share sheet.
-- Shows an error when the video file is missing, instead of saving a photo.
+- Open the phone button in the Mac app and scan the code.
+- Same Wi-Fi. The Mac downloads it. The phone saves the file.
+- YouTube, Instagram, and TikTok. Clip times and quality still work.
+- The link stays until you tap New code.
