@@ -25,7 +25,7 @@ const { fetchVideoInfo, startDownload, fetchCarouselVideos, fetchInstagramMediaV
 const { initializeYtdlp, updateYtdlp, getCurrentYtdlpVersion, checkAppUpdate, checkYtdlpUpdate, ensureYtdlpFresh } = require('./updater');
 const { nextEngineReadinessError } = require('./ytdlp-readiness');
 const { validateDenoRuntime } = require('./runtime-readiness');
-const { isValidURL, detectPlatform, normalizeYouTubeURL, normalizeInstagramURL, normalizeTikTokURL, binaryExists, getYtdlpPath, getBundledYtdlpPath, getUserBinDir, getFfmpegPath, pathExists, checkDiskSpace, sanitizeFilename } = require('./utils');
+const { isValidURL, detectPlatform, normalizePlatformURL, binaryExists, getYtdlpPath, getBundledYtdlpPath, getUserBinDir, getFfmpegPath, pathExists, checkDiskSpace, sanitizeFilename } = require('./utils');
 const { fetchMediaInfo, downloadImage, fetchImageAsDataUri, setYtdlpFetcher } = require('./media-fetcher');
 const {
   ensureYoutubeRecovery,
@@ -390,16 +390,12 @@ function createWindow() {
 
 ipcMain.handle('fetch-video-info', async (_event, url) => {
   if (!isValidURL(url)) {
-    throw new Error('That\'s not a valid URL. Paste a YouTube, Instagram, or TikTok link.');
+    throw new Error('That\'s not a valid URL. Paste a YouTube, Instagram, TikTok, or X link.');
   }
   await awaitYtdlpReady(url);
   const platform = detectPlatform(url);
   addBreadcrumb('Fetch video info', { platform });
-  const normalizedUrl = platform === 'youtube'
-    ? normalizeYouTubeURL(url)
-    : platform === 'instagram'
-      ? normalizeInstagramURL(url)
-      : normalizeTikTokURL(url);
+  const normalizedUrl = normalizePlatformURL(url, platform);
   const cacheKey = normalizedUrl;
   const fetchUrl = normalizedUrl;
 
@@ -425,7 +421,7 @@ ipcMain.handle('start-download', async (event, options) => {
     throw new Error('Invalid download options, you inept noodle.');
   }
   if (!isValidURL(options.url)) {
-    throw new Error('That\'s not a valid URL. Paste a YouTube, Instagram, or TikTok link.');
+    throw new Error('That\'s not a valid URL. Paste a YouTube, Instagram, TikTok, or X link.');
   }
   await awaitYtdlpReady(options.url);
   if (options.quality && !VALID_QUALITIES.has(options.quality) && !VALID_QUALITY_HEIGHT.test(options.quality)) {
@@ -469,11 +465,7 @@ ipcMain.handle('start-download', async (event, options) => {
   }
 
   const downloadId = crypto.randomUUID();
-  const downloadUrl = platform === 'youtube'
-    ? normalizeYouTubeURL(options.url)
-    : platform === 'instagram'
-      ? normalizeInstagramURL(options.url)
-      : normalizeTikTokURL(options.url);
+  const downloadUrl = normalizePlatformURL(options.url, platform);
 
   const downloadOptions = {
     url: downloadUrl,

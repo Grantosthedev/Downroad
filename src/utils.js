@@ -7,6 +7,8 @@ const { app } = require('electron');
 const YOUTUBE_URL_REGEX = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 const INSTAGRAM_URL_REGEX = /^https?:\/\/(?:www\.)?instagram\.com\/(?:(?:p|reel|reels|tv|stories|share)|[\w.-]+\/(?:p|reel|reels|tv))\/[\w.-]+/;
 const TIKTOK_URL_REGEX = /^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/@[\w.-]+\/(?:video|photo)\/\d+|^https?:\/\/(?:vm|vt)\.tiktok\.com\/[\w]+|^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/t\/[\w]+/;
+const X_URL_REGEX = /^https?:\/\/(?:(?:www|m(?:obile)?)\.)?(?:x\.com|twitter\.com|fxtwitter\.com|vxtwitter\.com|fixupx\.com|fixvx\.com)\/(?:(?:i\/web|[^/?#]+)\/status|statuses)\/\d+(?:\/(?:video|photo)\/\d+)?\/?(?:[?#]\S*)?$|^https?:\/\/(?:www\.)?t\.co\/[\w-]+\/?(?:[?#]\S*)?$/i;
+const X_ALIAS_HOSTS = new Set(['x.com', 'twitter.com', 'fxtwitter.com', 'vxtwitter.com', 'fixupx.com', 'fixvx.com']);
 
 function isValidYouTubeURL(url) {
   return YOUTUBE_URL_REGEX.test(url.trim());
@@ -14,7 +16,10 @@ function isValidYouTubeURL(url) {
 
 function isValidURL(url) {
   const trimmed = url.trim();
-  return YOUTUBE_URL_REGEX.test(trimmed) || INSTAGRAM_URL_REGEX.test(trimmed) || TIKTOK_URL_REGEX.test(trimmed);
+  return YOUTUBE_URL_REGEX.test(trimmed)
+    || INSTAGRAM_URL_REGEX.test(trimmed)
+    || TIKTOK_URL_REGEX.test(trimmed)
+    || X_URL_REGEX.test(trimmed);
 }
 
 function detectPlatform(url) {
@@ -22,11 +27,20 @@ function detectPlatform(url) {
   if (YOUTUBE_URL_REGEX.test(trimmed)) return 'youtube';
   if (INSTAGRAM_URL_REGEX.test(trimmed)) return 'instagram';
   if (TIKTOK_URL_REGEX.test(trimmed)) return 'tiktok';
+  if (X_URL_REGEX.test(trimmed)) return 'x';
   return null;
 }
 
 function isTiktokPhotoUrl(url) {
   return /\/photo\//.test(url.trim());
+}
+
+function isXPhotoUrl(url) {
+  return /\/photo\/\d+(?:[/?#]|$)/i.test(url.trim());
+}
+
+function canonicalXHost(hostname) {
+  return String(hostname || '').toLowerCase().replace(/^(?:www|m|mobile)\./, '');
 }
 
 function extractVideoId(url) {
@@ -78,6 +92,39 @@ function normalizeTikTokURL(url) {
   } catch {
     return trimmed;
   }
+}
+
+function normalizeXURL(url) {
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    const host = canonicalXHost(parsed.hostname);
+    if (host === 't.co') {
+      parsed.protocol = 'https:';
+      parsed.hostname = 't.co';
+      parsed.search = '';
+      parsed.hash = '';
+      return parsed.toString();
+    }
+    if (!X_ALIAS_HOSTS.has(host)) return trimmed;
+    parsed.protocol = 'https:';
+    parsed.hostname = 'x.com';
+    parsed.search = '';
+    parsed.hash = '';
+    const pathWithoutTrailingSlash = parsed.pathname.replace(/\/+$/, '');
+    parsed.pathname = pathWithoutTrailingSlash || parsed.pathname;
+    return parsed.toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+function normalizePlatformURL(url, platform) {
+  if (platform === 'youtube') return normalizeYouTubeURL(url);
+  if (platform === 'instagram') return normalizeInstagramURL(url);
+  if (platform === 'tiktok') return normalizeTikTokURL(url);
+  if (platform === 'x') return normalizeXURL(url);
+  return String(url || '').trim();
 }
 
 function sanitizeFilename(name) {
@@ -215,10 +262,13 @@ module.exports = {
   isValidURL,
   detectPlatform,
   isTiktokPhotoUrl,
+  isXPhotoUrl,
   extractVideoId,
   normalizeYouTubeURL,
   normalizeInstagramURL,
   normalizeTikTokURL,
+  normalizeXURL,
+  normalizePlatformURL,
   sanitizeFilename,
   getYtdlpPath,
   getBundledYtdlpPath,

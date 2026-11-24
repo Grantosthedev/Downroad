@@ -8,6 +8,7 @@ const {
   getFfmpegPath,
   sanitizeFilename,
   normalizeInstagramURL,
+  normalizeXURL,
 } = require('./utils');
 const { reportError } = require('./sentry-report');
 const { YTDLP_CHANNEL } = require('./ytdlp-release');
@@ -41,6 +42,8 @@ const ERROR_RULES = [
   { code: 'age_restricted', pattern: /age.?restrict|age.?gate|sign in to confirm your age/i, message: 'This video is age-restricted. It cannot be downloaded without authentication.' },
   { code: 'region_blocked', pattern: /not available in your country/i, message: 'This video is not available in your region.' },
   { code: 'tiktok_login_required', pattern: /\[TikTok\].*(?:requiring login|login required|logged.in users|fresh cookies)/is, message: 'TikTok requires a logged-in session for this video. Open it in TikTok to confirm it is available, then try again later.' },
+  { code: 'x_login_required', pattern: /\[twitter\].*(?:requires authentication|not authorized|protected tweet)/i, message: 'This X post is private or locked. Downroad can only download public videos.' },
+  { code: 'x_no_video', pattern: /\[twitter\].*(?:No video could be found|is not a video)/i, message: 'No video on this X post. Photo and text posts are not supported.' },
   { code: 'login_required', pattern: /login.*page|locked behind|sign in to confirm you.re not a bot/i, message: 'YouTube rejected this playback request. Downroad tried automatic recovery, but YouTube still refused it.' },
   { code: 'unsupported_url', pattern: /Unsupported URL/i, message: 'This URL type isn\'t supported yet. Downroad handles videos and audio. Image-only posts aren\'t supported via this method.' },
   { code: 'js_runtime_missing', pattern: /No supported JavaScript runtime|JavaScript runtime.*(?:missing|unavailable|unsupported)/i, message: 'YouTube challenge support is unavailable. Reinstall or update Downroad to restore the bundled runtime.' },
@@ -49,6 +52,7 @@ const ERROR_RULES = [
   { code: 'rate_limited', status: 429, pattern: /HTTP Error 429|429 Too Many Requests|rate.?limit/i, message: 'The platform is rate-limiting requests. Stop downloads, wait a while, then try again.' },
   { code: 'access_forbidden', status: 403, pattern: /HTTP Error 403|\b403 Forbidden\b/i, message: 'The platform rejected this video stream. Update the download engine, then try again.' },
   { code: 'tiktok_challenge', pattern: /\[TikTok\].*(?:Unable to extract (?:sigi state|universal data|webpage video data)|Unexpected response from webpage request|JS challenge|challenge cookie)/is, message: 'TikTok blocked this request with a temporary verification challenge. Downroad retried automatically, but TikTok still refused it. Wait a moment and try again.' },
+  { code: 'x_request_blocked', pattern: /\[twitter\].*(?:unable to extract|could not retrieve guest token|while querying API)/i, message: 'X blocked this request. Wait a moment and try again.' },
   { code: 'extractor_regression', pattern: /nsig extraction|signature extraction|player.*error|cipher|unable to extract|ExtractorError|extractor.*error/i, message: 'The download engine can\'t process YouTube\'s current player. Check for updates in Settings.' },
   { code: 'network_error', pattern: /urlopen error|timed out|(?:network|connection).*(?:error|refused|reset)/i, message: 'Network error. Check your internet connection and try again.' },
   { code: 'unavailable', pattern: /video.*(?:unavailable|removed|deleted|not exist)|content.*not available|currently unavailable/i, message: 'This video is unavailable or has been removed.' },
@@ -174,14 +178,23 @@ function detectMediaType(info, platform, url) {
   return candidateFormats.some(formatHasVideo) ? 'video' : 'image';
 }
 
+const X_NO_VIDEO_MESSAGE = 'No video on this X post. Photo and text posts are not supported.';
+
+function resolveExtractorUrl(url, platform) {
+  if (platform === 'instagram') return normalizeInstagramURL(url);
+  if (platform === 'x') return normalizeXURL(url);
+  return url;
+}
+
 function buildInfoArgs({ url, platform, ffmpegPath, denoPath = getDenoPath(), recoveryArgs = [] }) {
   return [
     '--dump-json',
     '--no-playlist',
+    ...(platform === 'x' ? ['--playlist-items', '1'] : []),
     '--ffmpeg-location', path.dirname(ffmpegPath),
     ...youtubeRuntimeArgs(platform, denoPath),
     ...(platform === 'youtube' ? recoveryArgs : []),
-    platform === 'instagram' ? normalizeInstagramURL(url) : url,
+    resolveExtractorUrl(url, platform),
   ];
 }
 
@@ -189,7 +202,7 @@ function fetchVideoInfo(url, platform, options = {}) {
   return new Promise((resolve, reject) => {
     const ytdlp = getYtdlpPath();
     const ffmpeg = getFfmpegPath();
-    const fetchUrl = platform === 'instagram' ? normalizeInstagramURL(url) : url;
+    const fetchUrl = resolveExtractorUrl(url, platform);
 
     const args = buildInfoArgs({
       url: fetchUrl,
@@ -199,7 +212,7 @@ function fetchVideoInfo(url, platform, options = {}) {
     });
 
     cleanStaleYtdlpTemp();
-    const timeout = platform === 'instagram' || platform === 'tiktok' ? 60000 : 30000;
+    const timeout = platform === 'instagram' || platform === 'tiktok' || platform === 'x' ? 60000 : 30000;
     const proc = spawn(ytdlp, args);
     let stdout = '';
     let stderr = '';
@@ -231,6 +244,18 @@ function fetchVideoInfo(url, platform, options = {}) {
       if (stderr.trim()) console.warn('[yt-dlp] fetch warnings:', stderr.trim().slice(-2000));
       try {
         const info = JSON.parse(stdout);
+        const mediaType = detectMediaType(info, platform, fetchUrl);
+        if (platform === 'x' && mediaType !== 'video') {
+          const error = new Error(X_NO_VIDEO_MESSAGE);
+          error.code = 'x_no_video';
+          reportYtdlpFailure(error, {
+            phase: 'fetch-info',
+            platform,
+            diagnosis: { code: 'x_no_video', httpStatus: null },
+          });
+          reject(error);
+          return;
+        }
         const formats = info.formats || [];
         let estimatedFileSize = 0;
         for (let i = formats.length - 1; i >= 0; i--) {
@@ -260,7 +285,7 @@ function fetchVideoInfo(url, platform, options = {}) {
           tags: (info.tags || []).slice(0, 10),
           license: info.license || '',
           platform: platform || 'youtube',
-          mediaType: detectMediaType(info, platform, fetchUrl),
+          mediaType,
           estimatedFileSize,
         });
       } catch (e) {
@@ -320,6 +345,7 @@ function buildDownloadArgs({
   const isYouTube = !platform || platform === 'youtube';
   const args = [
     '--no-playlist',
+    ...(platform === 'x' ? ['--playlist-items', '1'] : []),
     '--newline',
     '--ffmpeg-location', ffmpegDir,
     '--concurrent-fragments', '4',
@@ -383,7 +409,7 @@ function buildDownloadArgs({
     }
   }
 
-  args.push(platform === 'instagram' ? normalizeInstagramURL(url) : url);
+  args.push(resolveExtractorUrl(url, platform));
   return args;
 }
 

@@ -140,6 +140,55 @@ test('adds automatic recovery arguments only to YouTube operations', (t) => {
   assert.equal(instagramArgs.includes('/tmp/plugins'), false);
 });
 
+test('sends a cleaned X post to yt-dlp and keeps clip points on YouTube', (t) => {
+  const deno = executable(t);
+  const rawUrl = 'https://x.com/junglerockres/status/2124952586700591526/video/1?a=dOSEUEp09_ZYR7JRPjs&s=46';
+  const cleanUrl = 'https://x.com/junglerockres/status/2124952586700591526/video/1';
+
+  const infoArgs = buildInfoArgs({
+    url: rawUrl,
+    platform: 'x',
+    ffmpegPath: '/tmp/ffmpeg',
+    denoPath: deno,
+    recoveryArgs: ['--extractor-args', 'youtube:player_client=mweb'],
+  });
+  assert.equal(infoArgs.at(-1), cleanUrl);
+  assert.ok(infoArgs.includes('--playlist-items'));
+  assert.equal(infoArgs.includes(`deno:${deno}`), false);
+  assert.equal(infoArgs.includes('youtube:player_client=mweb'), false);
+
+  const downloadArgs = buildDownloadArgs({
+    url: rawUrl,
+    quality: '1080',
+    startTime: '00:00:01',
+    endTime: '00:00:05',
+    outputPath: '/tmp',
+    title: 'Jungle Rock',
+    ffmpegDir: '/tmp',
+    platform: 'x',
+    denoPath: deno,
+  });
+  assert.equal(downloadArgs.at(-1), cleanUrl);
+  assert.ok(downloadArgs.includes('--playlist-items'));
+  assert.equal(downloadArgs.includes('--download-sections'), false);
+  assert.equal(downloadArgs.includes(`deno:${deno}`), false);
+});
+
+test('explains X posts that are locked or have no video', () => {
+  const locked = diagnoseYtdlpError('ERROR: [twitter] 1: NSFW tweet requires authentication. Use --cookies');
+  assert.equal(locked.code, 'x_login_required');
+  assert.match(locked.message, /public videos/i);
+  assert.doesNotMatch(locked.message, /cookie/i);
+
+  const photo = diagnoseYtdlpError('ERROR: [twitter] 1: Media #1 is not a video');
+  assert.equal(photo.code, 'x_no_video');
+  assert.match(photo.message, /No video on this X post/);
+
+  const blocked = diagnoseYtdlpError('ERROR: [twitter] 1: Could not retrieve guest token');
+  assert.equal(blocked.code, 'x_request_blocked');
+  assert.doesNotMatch(blocked.message, /YouTube/i);
+});
+
 test('does not download a Reel cover when the file URL is a photo', () => {
   const coverOnly = {
     url: 'https://cdninstagram.com/reel-cover.jpg',

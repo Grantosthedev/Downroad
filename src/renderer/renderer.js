@@ -244,6 +244,7 @@ themeToggle?.addEventListener('click', (e) => {
 const YOUTUBE_URL_REGEX = /^https?:\/\/(?:www\.|m\.|music\.)?(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
 const INSTAGRAM_URL_REGEX = /^https?:\/\/(?:www\.)?instagram\.com\/(?:(?:p|reel|reels|tv|stories|share)|[\w.-]+\/(?:p|reel|reels|tv))\/[\w.-]+/;
 const TIKTOK_URL_REGEX = /^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/@[\w.-]+\/(?:video|photo)\/\d+|^https?:\/\/(?:vm|vt)\.tiktok\.com\/[\w]+|^https?:\/\/(?:(?:www|m)\.)?tiktok\.com\/t\/[\w]+/;
+const X_URL_REGEX = /^https?:\/\/(?:(?:www|m(?:obile)?)\.)?(?:x\.com|twitter\.com|fxtwitter\.com|vxtwitter\.com|fixupx\.com|fixvx\.com)\/(?:(?:i\/web|[^/?#]+)\/status|statuses)\/\d+(?:\/(?:video|photo)\/\d+)?\/?(?:[?#]\S*)?$|^https?:\/\/(?:www\.)?t\.co\/[\w-]+\/?(?:[?#]\S*)?$/i;
 
 function isValidYouTubeURL(url) {
   return YOUTUBE_URL_REGEX.test(url.trim());
@@ -251,7 +252,10 @@ function isValidYouTubeURL(url) {
 
 function isValidURL(url) {
   const trimmed = url.trim();
-  return YOUTUBE_URL_REGEX.test(trimmed) || INSTAGRAM_URL_REGEX.test(trimmed) || TIKTOK_URL_REGEX.test(trimmed);
+  return YOUTUBE_URL_REGEX.test(trimmed)
+    || INSTAGRAM_URL_REGEX.test(trimmed)
+    || TIKTOK_URL_REGEX.test(trimmed)
+    || X_URL_REGEX.test(trimmed);
 }
 
 function detectPlatform(url) {
@@ -259,11 +263,21 @@ function detectPlatform(url) {
   if (YOUTUBE_URL_REGEX.test(trimmed)) return 'youtube';
   if (INSTAGRAM_URL_REGEX.test(trimmed)) return 'instagram';
   if (TIKTOK_URL_REGEX.test(trimmed)) return 'tiktok';
+  if (X_URL_REGEX.test(trimmed)) return 'x';
   return null;
 }
 
 function isTiktokPhotoUrl(url) {
   return /\/photo\//.test(url.trim());
+}
+
+function isXPhotoUrl(url) {
+  return /\/photo\/\d+(?:[/?#]|$)/i.test(url.trim());
+}
+
+function visiblePlatform(platform) {
+  if (platform === 'x') return 'X';
+  return platform ? platform.charAt(0).toUpperCase() + platform.slice(1) : '';
 }
 
 function brightTextColor(hue) {
@@ -543,6 +557,7 @@ const PROFESSIONAL_STRINGS = new Map([
   ['Fix clip times (start must be before end)', 'Fix clip times (start must be before end)'],
   ['Not ready yet', 'Not ready yet'],
   ['TikTok photo slideshows aren\'t supported yet. Video posts work great though!', 'TikTok photo slideshows are not supported. Video posts are supported.'],
+  ['X photo posts aren\'t videos. Paste a video post instead.', 'X photo posts are not supported. Video posts are supported.'],
   ['Couldn\'t fetch this Instagram post. It may be private or require login.', 'Could not fetch this Instagram post. It may be private or require login.'],
   ['Couldn\'t fetch the Reel video. Update yt-dlp in Settings and try again.', 'Could not fetch the Reel video. Update the download engine in Settings and try again.'],
   ['Loading...', 'Loading...'],
@@ -622,6 +637,7 @@ const DIABOLICAL_STRINGS = new Map([
   ['Fix clip times (start must be before end)', 'FIX YOUR CLIP TIMES. TIME DOESN\'T GO BACKWARDS, MORON.'],
   ['Not ready yet', 'NOT READY. WHAT THE FUCK ARE YOU DOING.'],
   ['TikTok photo slideshows aren\'t supported yet. Video posts work great though!', 'TIKTOK SLIDESHOWS? NO. VIDEO ONLY. READ THE ROOM, IDIOT.'],
+  ['X photo posts aren\'t videos. Paste a video post instead.', 'X PHOTOS? NO. VIDEO ONLY. READ THE ROOM, IDIOT.'],
   ['Couldn\'t fetch this Instagram post. It may be private or require login.', 'CAN\'T FETCH THAT INSTAGRAM POST. PROBABLY PRIVATE. PROBABLY YOUR FAULT.'],
   ['Couldn\'t fetch the Reel video. Update yt-dlp in Settings and try again.', 'CAN\'T FETCH THE ACTUAL REEL VIDEO. UPDATE YT-DLP IN SETTINGS AND TRY AGAIN.'],
   ['Loading...', 'LOADING...'],
@@ -1923,7 +1939,10 @@ function updateDownloadBtnState() {
   }
   if (state.instantDownload) {
     const url = urlInput.value.trim();
-    const validUrl = isValidURL(url) && !(detectPlatform(url) === 'tiktok' && isTiktokPhotoUrl(url));
+    const platform = detectPlatform(url);
+    const unsupportedPhoto = (platform === 'tiktok' && isTiktokPhotoUrl(url))
+      || (platform === 'x' && isXPhotoUrl(url));
+    const validUrl = isValidURL(url) && !unsupportedPhoto;
     downloadBtn.disabled = !validUrl || state.isFetchingInfo;
     return;
   }
@@ -2061,6 +2080,12 @@ async function handleUrlChange() {
     return;
   }
 
+  if (platform === 'x' && isXPhotoUrl(url)) {
+    showStatus('warning', t('X photo posts aren\'t videos. Paste a video post instead.'));
+    resetVideoState();
+    return;
+  }
+
   urlRow.classList.remove('error');
 
   // Instant download mode: skip scanning, enable download button immediately
@@ -2119,7 +2144,7 @@ async function fetchInfo(url) {
     videoTitle.textContent = info.title;
 
     const platformLabel = info.platform && info.platform !== 'youtube'
-      ? info.platform.charAt(0).toUpperCase() + info.platform.slice(1) + ' · ' : '';
+      ? `${visiblePlatform(info.platform)} · ` : '';
     const sizeLabel = info.estimatedFileSize ? ` · ~${formatFileSize(info.estimatedFileSize)}` : '';
     const isImage = info.mediaType === 'image';
     const durationPart = isImage ? 'Image' : `Duration: ${formatDuration(info.duration)}`;
@@ -2815,7 +2840,7 @@ async function handleDownload() {
       return;
     }
 
-    // YouTube / TikTok — pass directly to yt-dlp
+    // YouTube, TikTok, and X go straight to yt-dlp
     const activeCount = [...state.downloads.values()].filter(
       d => d.status === 'preparing' || d.status === 'downloading'
     ).length;
@@ -2826,7 +2851,7 @@ async function handleDownload() {
     }
 
     hideStatus();
-    const platformTitle = platform === 'tiktok' ? 'TikTok video' : 'YouTube video';
+    const platformTitle = platform === 'tiktok' ? 'TikTok video' : platform === 'x' ? 'X video' : 'YouTube video';
 
     try {
       const result = await window.api.startDownload({
@@ -3171,7 +3196,7 @@ window.api.onWindowFocus(async () => {
       state.lastClipboardUrl = text;
       urlInput.value = text;
       const platform = detectPlatform(text);
-      const platformName = platform ? platform.charAt(0).toUpperCase() + platform.slice(1) : 'Link';
+      const platformName = visiblePlatform(platform) || 'Link';
       const clipboardHintToken = setPooledUrlHint('clipboardDetected', true, platformName);
       handleUrlChange();
 
@@ -3403,7 +3428,7 @@ function updateQualityLabels(platform, contentType) {
       buildPresetDropdown(state.selectedQuality);
       qualityBtnLabel.textContent = qualityToLabel(state.selectedQuality);
     } else {
-      // Non-YouTube platform (TikTok) — no dropdown
+      // Non-YouTube platforms such as TikTok and X have no resolution dropdown
       qualityChevron.classList.remove('visible');
       qualityBtnLabel.textContent = 'Best Quality';
       qualityDropdownList.innerHTML = '';
@@ -4915,7 +4940,7 @@ function createHistoryEntryEl(entry) {
     detailRows.push({ label: 'Source', value: entry.webpageUrl, copyable: true, expandable: true });
   }
   if (entry.channel || entry.uploader) {
-    const channelLabel = (entry.platform === 'instagram' || entry.platform === 'tiktok') ? 'Creator' : 'Channel';
+    const channelLabel = (entry.platform === 'instagram' || entry.platform === 'tiktok' || entry.platform === 'x') ? 'Creator' : 'Channel';
     let channelVal = entry.channel || entry.uploader;
     if (entry.channelUrl) channelVal += ` (${entry.channelUrl})`;
     detailRows.push({ label: channelLabel, value: channelVal, expandable: !!entry.channelUrl });
@@ -4999,7 +5024,7 @@ function createHistoryEntryEl(entry) {
       </div>
       ${qualityBadge}
       ${getHistorySortBadgeHtml(entry, 'list')}
-      ${entry.platform && entry.platform !== 'youtube' ? `<span class="history-entry__platform">${escapeHtml(entry.platform)}</span>` : ''}
+      ${entry.platform && entry.platform !== 'youtube' ? `<span class="history-entry__platform">${escapeHtml(entry.platform === 'x' ? 'X' : entry.platform)}</span>` : ''}
       ${entry.project
         ? `<span class="history-entry__project" data-reassign-trigger title="Change project">${escapeHtml(entry.project)}</span>`
         : `<button class="history-entry__add-project" data-reassign-trigger title="Assign to project">${icon('add-01', 'ui-icon')} Project</button>`
