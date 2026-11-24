@@ -1,5 +1,5 @@
-Instagram Reels download as video again.
+X videos download.
 
-- Saves the Reel video instead of the cover photo.
-- Accepts Reel links from posts, profiles, and the share sheet.
-- Shows an error when the video file is missing, instead of saving a photo.
+- Accepts public x.com and twitter.com posts, including /video links from the share sheet.
+- Strips tracking parameters and saves the video as MP4.
+- Photo posts, private posts, and text-only posts show a clear error instead of failing silently.

@@ -34,6 +34,8 @@ const EXPECTED_REASON_CODES = new Set([
   'region_blocked',
   'unavailable',
   'unsupported_url',
+  'x_login_required',
+  'x_no_video',
 ]);
 
 const PLATFORM_REASON_CODES = new Set([
@@ -44,6 +46,7 @@ const PLATFORM_REASON_CODES = new Set([
   'platform_unreachable',
   'po_token_required',
   'sabr_only',
+  'x_request_blocked',
 ]);
 
 const SENSITIVE_KEY = /(?:^|_)(?:url|uri|path|filepath|clipboard|history|project|username|email)(?:$|_)/i;
