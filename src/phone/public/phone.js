@@ -2,69 +2,59 @@
   const COPY = {
     professional: {
       placeholder: 'Paste a link',
-      idle: 'YouTube, Instagram, or TikTok.',
       check: 'Check link',
       download: 'Download',
       save: 'Save to this phone',
       badUrl: 'Paste a YouTube, Instagram, or TikTok link.',
       locked: 'Open this page from the phone button in Downroad on your Mac.',
-      working: 'Downloading on your Mac.',
-      queued: 'Waiting for the Mac.',
-      ready: 'Tap Save. On iPhone, choose Save to Files.',
-      doneHint: 'Checked. Set a clip or quality, then download.',
+      queued: 'Waiting',
+      ready: 'On iPhone, choose Save to Files.',
       offline: 'Cannot reach the Mac. Same Wi-Fi, and Downroad has to be open.',
-      footnote: 'Same Wi-Fi as the Mac running Downroad. Nothing to install.',
+      footnote: 'Same Wi-Fi. Nothing to install.',
       cancel: 'Cancel',
       cancelled: 'Cancelled.',
       failed: 'Download failed.',
-      audio: 'Audio only',
+      audio: 'Audio',
       video: 'Video',
     },
     unhinged: {
       placeholder: 'Paste a link, my ninja',
-      idle: 'Then check the damn thing.',
       check: 'Check this link',
       download: 'Download This Shit',
       save: 'Save to this phone',
       badUrl: 'Nope, bad URL you buffoon.',
       locked: 'Scan the code in Downroad again, fam. This page is locked.',
-      working: 'Ripping it on your Mac.',
-      queued: 'In line. Don\'t lock the phone yet.',
-      ready: 'Done. Tap Save. On iPhone, pick Save to Files.',
-      doneHint: 'Ready: tap Download This Shit',
+      queued: 'In line',
+      ready: 'On iPhone, pick Save to Files.',
       offline: 'Can\'t reach your Mac. Same Wi-Fi, and Downroad has to be open.',
-      footnote: 'Same Wi-Fi as the Mac. Nothing to install. Your Mac does the ripping.',
+      footnote: 'Same Wi-Fi. Nothing to install.',
       cancel: 'Cancel',
-      cancelled: 'Cancelled. The clip lives another day.',
+      cancelled: 'Cancelled.',
       failed: 'What the Helly! Download failed.',
-      audio: 'Audio Only',
+      audio: 'Audio',
       video: 'Video',
     },
     diabolical: {
       placeholder: 'PASTE THE LINK',
-      idle: 'THEN CHECK IT.',
       check: 'CHECK IT',
       download: 'RIP IT',
-      save: 'SAVE IT TO THIS PHONE',
+      save: 'SAVE IT',
       badUrl: 'THAT IS NOT A LINK. TRY AGAIN.',
       locked: 'SCAN THE CODE ON THE MAC. THIS PAGE IS LOCKED.',
-      working: 'YOUR MAC IS RIPPING IT. WAIT.',
-      queued: 'WAIT YOUR TURN.',
-      ready: 'DONE. TAP SAVE. ON IPHONE, PICK SAVE TO FILES.',
-      doneHint: 'READY: HIT RIP IT.',
+      queued: 'WAIT',
+      ready: 'ON IPHONE: SAVE TO FILES.',
       offline: 'CANNOT REACH THE MAC. SAME WI-FI. APP HAS TO BE OPEN.',
-      footnote: 'SAME WI-FI AS THE MAC. NOTHING TO INSTALL.',
+      footnote: 'SAME WI-FI. NOTHING TO INSTALL.',
       cancel: 'CANCEL',
       cancelled: 'CANCELLED.',
       failed: 'DOWNLOAD FAILED.',
-      audio: 'AUDIO ONLY',
+      audio: 'AUDIO',
       video: 'VIDEO',
     },
   };
 
   const urlInput = document.getElementById('url');
   const clearBtn = document.getElementById('clearBtn');
-  const hint = document.getElementById('hint');
   const banner = document.getElementById('banner');
   const form = document.getElementById('form');
   const goBtn = document.getElementById('goBtn');
@@ -77,13 +67,14 @@
   const startTime = document.getElementById('startTime');
   const endTime = document.getElementById('endTime');
   const qualities = document.getElementById('qualities');
-  const jobEl = document.getElementById('job');
+  const jobTrack = document.getElementById('jobTrack');
   const jobFill = document.getElementById('jobFill');
   const jobText = document.getElementById('jobText');
   const cancelBtn = document.getElementById('cancelBtn');
   const saveLink = document.getElementById('saveLink');
   const themeBtn = document.getElementById('themeBtn');
   const footnote = document.getElementById('footnote');
+  const sticker = document.getElementById('sticker');
 
   const launch = readLaunchHash(location.hash);
   if (launch.key) localStorage.setItem('downroad.phone.key', launch.key);
@@ -105,12 +96,12 @@
 
   applyCopy();
   applyTheme();
+  syncChrome();
   if (!key) showBanner(copy.locked);
 
   urlInput.addEventListener('input', () => {
     clearBtn.hidden = urlInput.value.length === 0;
     if (normalize(urlInput.value) !== inspectedUrl) resetPreview();
-    hint.textContent = urlInput.value.trim() ? copy.check : copy.idle;
   });
 
   clearBtn.addEventListener('click', () => {
@@ -126,8 +117,6 @@
     localStorage.setItem('downroad.phone.theme', theme);
     applyTheme();
   });
-
-  urlInput.addEventListener('blur', showUrlEnd);
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -161,25 +150,18 @@
     try {
       await api(`/api/jobs/${activeJob}/cancel`, { method: 'POST', body: '{}' });
     } catch { /* the Mac may already be done */ }
-    jobText.textContent = copy.cancelled;
-    cancelBtn.hidden = true;
     activeJob = '';
-    goBtn.disabled = false;
+    showIdleAction();
+    setStatus(copy.cancelled);
   });
 
   function applyCopy() {
     urlInput.placeholder = copy.placeholder;
     footnote.textContent = copy.footnote;
-    goBtn.textContent = info ? copy.download : copy.check;
+    if (!info) goBtn.textContent = copy.check;
+    else if (!activeJob && saveLink.hidden) goBtn.textContent = copy.download;
     cancelBtn.textContent = copy.cancel;
     saveLink.textContent = copy.save;
-    if (!urlInput.value.trim()) hint.textContent = copy.idle;
-  }
-
-  function showUrlEnd() {
-    requestAnimationFrame(() => {
-      urlInput.scrollLeft = urlInput.scrollWidth;
-    });
   }
 
   function applyTheme() {
@@ -190,6 +172,12 @@
     icon.className = theme === 'light'
       ? 'hgi-stroke hgi-sun-01 ui-icon'
       : 'hgi-stroke hgi-moon-02 ui-icon';
+  }
+
+  function syncChrome() {
+    const busy = Boolean(info);
+    sticker.hidden = busy;
+    footnote.hidden = busy;
   }
 
   async function inspect(raw) {
@@ -203,19 +191,15 @@
     itemIndex = 0;
     startTime.value = '00:00:00';
     endTime.value = '00:00:00';
-    if (!activeJob) {
-      jobEl.hidden = true;
-      saveLink.hidden = true;
-    }
+    if (!activeJob) showIdleAction();
     renderPreview();
-    showUrlEnd();
-    hint.textContent = copy.doneHint;
     goBtn.textContent = copy.download;
   }
 
   function renderPreview() {
     card.hidden = false;
-    titleEl.textContent = midTruncate(info.title || 'Untitled', 65);
+    const budget = info.thumb ? 28 : 42;
+    titleEl.textContent = midTruncate(info.title || 'Untitled', budget);
     titleEl.title = info.title || '';
     const bits = [platformLabel(info.platform)];
     if (info.duration) bits.push(formatDuration(info.duration));
@@ -231,6 +215,7 @@
     }
     renderItems();
     renderControls();
+    syncChrome();
   }
 
   function renderItems() {
@@ -306,11 +291,7 @@
       body: JSON.stringify(body),
     });
     activeJob = created.id;
-    jobEl.hidden = false;
-    saveLink.hidden = true;
-    cancelBtn.hidden = false;
-    setProgress(0);
-    jobText.textContent = copy.queued;
+    showWorking(copy.queued);
     await poll(created.id, gen);
   }
 
@@ -327,42 +308,62 @@
       }
       showBanner(messageFor(error));
       activeJob = '';
-      goBtn.disabled = false;
-      cancelBtn.hidden = true;
+      showIdleAction();
       return;
     }
     if (gen !== pollGen) return;
     setProgress(job.percent || 0);
-    jobText.textContent = jobLabel(job);
     if (job.status === 'ready') {
       saveLink.hidden = false;
       saveLink.href = `/api/jobs/${id}/file`;
       if (job.filename) saveLink.setAttribute('download', job.filename);
+      goBtn.hidden = true;
+      jobTrack.hidden = true;
       cancelBtn.hidden = true;
       activeJob = '';
       goBtn.disabled = false;
+      setStatus(copy.ready);
       return;
     }
     if (job.status === 'error' || job.status === 'cancelled' || job.status === 'missing') {
-      cancelBtn.hidden = true;
       activeJob = '';
-      goBtn.disabled = false;
+      showIdleAction();
       if (job.status === 'error') showBanner(job.error || copy.failed);
+      else if (job.status === 'cancelled') setStatus(copy.cancelled);
       return;
     }
+    if (job.status === 'queued') showWorking(copy.queued);
+    else showWorking(`${Math.round(job.percent || 0)}%`, speedLine(job));
     window.setTimeout(() => poll(id, gen, 0), 700);
   }
 
-  function jobLabel(job) {
-    if (job.status === 'queued') return copy.queued;
-    if (job.status === 'running') {
-      const extra = [job.speed, job.eta ? `ETA ${job.eta}` : ''].filter(Boolean).join(' · ');
-      const pct = `${Math.round(job.percent || 0)}%`;
-      return extra ? `${copy.working} ${pct} · ${extra}` : `${copy.working} ${pct}`;
-    }
-    if (job.status === 'ready') return copy.ready;
-    if (job.status === 'cancelled') return copy.cancelled;
-    return job.error || copy.failed;
+  function showWorking(label, detail) {
+    goBtn.hidden = false;
+    saveLink.hidden = true;
+    goBtn.textContent = label;
+    jobTrack.hidden = false;
+    cancelBtn.hidden = false;
+    setStatus(detail || '');
+  }
+
+  function showIdleAction() {
+    goBtn.hidden = false;
+    saveLink.hidden = true;
+    jobTrack.hidden = true;
+    cancelBtn.hidden = true;
+    goBtn.disabled = false;
+    goBtn.textContent = info ? copy.download : copy.check;
+    jobText.hidden = true;
+    jobText.textContent = '';
+  }
+
+  function speedLine(job) {
+    return [job.speed, job.eta ? `ETA ${job.eta}` : ''].filter(Boolean).join(' · ');
+  }
+
+  function setStatus(text) {
+    jobText.hidden = !text;
+    jobText.textContent = text || '';
   }
 
   function resetPreview() {
@@ -371,8 +372,8 @@
     card.hidden = true;
     itemsEl.hidden = true;
     controls.hidden = true;
-    goBtn.textContent = copy.check;
-    if (!activeJob) jobEl.hidden = true;
+    if (!activeJob) showIdleAction();
+    syncChrome();
   }
 
   function setProgress(percent) {

@@ -16,14 +16,14 @@
 <body>
   <main class="phone">
     <header class="top">
-      <img class="sticker" src="/assets/sticker.png" alt="" draggable="false">
+      <img id="sticker" class="sticker" src="/assets/sticker.png" alt="" draggable="false">
       <div class="top__row">
         <h1>Downroad</h1>
         <button id="themeBtn" class="icon-btn" type="button" aria-label="Appearance">
           <i class="hgi-stroke hgi-moon-02 ui-icon" aria-hidden="true"></i>
         </button>
       </div>
-      <p id="footnote" class="footnote">Same Wi-Fi as the Mac running Downroad. Nothing to install.</p>
+      <p id="footnote" class="footnote">Same Wi-Fi. Nothing to install.</p>
     </header>
 
     <p id="banner" class="banner" role="alert" hidden></p>
@@ -36,7 +36,6 @@
           <i class="hgi-stroke hgi-cancel-01 ui-icon" aria-hidden="true"></i>
         </button>
       </div>
-      <p id="hint" class="hint">Then check the damn thing.</p>
 
       <section id="card" class="card" hidden>
         <img id="thumb" class="card__thumb" alt="">
@@ -46,33 +45,22 @@
         </div>
       </section>
 
-      <div id="items" class="items" hidden></div>
+      <div id="items" class="bar" role="group" aria-label="Items" hidden></div>
 
       <div id="controls" class="controls" hidden>
         <div class="times">
-          <label class="time">
-            <span>Start</span>
-            <input id="startTime" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="00:00:00" value="00:00:00">
-          </label>
+          <input id="startTime" class="time" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="Start" placeholder="00:00:00" value="00:00:00">
           <span class="times__to">to</span>
-          <label class="time">
-            <span>End</span>
-            <input id="endTime" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="00:00:00" value="00:00:00">
-          </label>
+          <input id="endTime" class="time" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="End" placeholder="00:00:00" value="00:00:00">
         </div>
-        <div id="qualities" class="qualities" role="radiogroup" aria-label="Quality"></div>
+        <div id="qualities" class="bar" role="radiogroup" aria-label="Quality"></div>
       </div>
 
       <button id="goBtn" class="btn-download" type="submit">Check this link</button>
-
-      <section id="job" class="job" hidden>
-        <div class="job__track" aria-hidden="true"><div id="jobFill" class="job__fill"></div></div>
-        <p id="jobText" class="job__text" aria-live="polite"></p>
-        <div class="job__actions">
-          <button id="cancelBtn" class="btn-quiet" type="button">Cancel</button>
-          <a id="saveLink" class="btn-save" hidden>Save to this phone</a>
-        </div>
-      </section>
+      <a id="saveLink" class="btn-download" hidden>Save to this phone</a>
+      <div id="jobTrack" class="job-line" hidden><div id="jobFill" class="job-line__fill"></div></div>
+      <p id="jobText" class="status" hidden></p>
+      <button id="cancelBtn" class="text-btn" type="button" hidden>Cancel</button>
     </form>
   </main>
   <script src="/phone.js"></script>

@@ -41,7 +41,7 @@ html, body {
 
 body {
   padding:
-    calc(16px + env(safe-area-inset-top))
+    calc(20px + env(safe-area-inset-top))
     calc(16px + env(safe-area-inset-right))
     calc(24px + env(safe-area-inset-bottom))
     calc(16px + env(safe-area-inset-left));
@@ -50,18 +50,18 @@ body {
 button, input, a { font-family: inherit; font-weight: inherit; }
 
 .phone {
-  width: min(100%, 520px);
+  width: min(100%, 480px);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .top { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 
 .sticker {
-  width: 120px;
-  height: 120px;
+  width: 88px;
+  height: 88px;
   object-fit: contain;
 }
 
@@ -70,8 +70,8 @@ button, input, a { font-family: inherit; font-weight: inherit; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   position: relative;
+  min-height: 40px;
 }
 
 h1 {
@@ -96,12 +96,14 @@ h1 {
 
 .icon-btn:active { transform: scale(0.95); }
 
-.footnote, .hint, .card__meta, .job__text {
+.footnote, .card__meta, .status {
   margin: 0;
   color: var(--grey-muted);
   font-size: 13px;
-  line-height: 1.4;
+  line-height: 1.35;
 }
+
+.status { text-align: center; }
 
 .banner {
   margin: 0;
@@ -118,8 +120,7 @@ h1 {
 .url-row {
   position: relative;
   border: 2px solid var(--white);
-  border-radius: 28px;
-  padding: 8px;
+  border-radius: var(--radius-pill);
   background: transparent;
 }
 
@@ -127,23 +128,23 @@ h1 {
 
 .url-input {
   width: 100%;
-  min-height: 44px;
+  min-height: 48px;
   border: 0;
   outline: none;
   background: transparent;
   color: var(--white);
   font-size: 16px;
-  padding: 8px 12px;
+  padding: 8px 16px;
 }
 
-.url-row:has(.clear-btn:not([hidden])) .url-input { padding-right: 36px; }
+.url-row:has(.clear-btn:not([hidden])) .url-input { padding-right: 44px; }
 
 .url-input::placeholder { color: var(--grey-muted); }
 
 .clear-btn {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 8px;
+  right: 8px;
   width: 32px;
   height: 32px;
   border: 0;
@@ -152,10 +153,14 @@ h1 {
   color: var(--grey-muted);
 }
 
-.btn-download, .btn-save, .btn-quiet {
-  min-height: 44px;
-  border-radius: var(--radius-pill);
+.btn-download {
+  width: 100%;
+  min-height: 48px;
   border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--red-bright);
+  color: #fff;
+  font-size: 14px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -163,31 +168,22 @@ h1 {
   padding: 0 16px;
 }
 
-.btn-download, .btn-save {
-  background: var(--red-bright);
-  color: #fff;
-  font-size: 14px;
-}
+.btn-download:disabled { opacity: 0.55; }
 
-.btn-download { width: 100%; }
-
-.btn-download:disabled {
-  opacity: 0.55;
-}
-
-.btn-download:active, .btn-save:active, .btn-quiet:active { transform: scale(0.98); }
+.btn-download:active, .text-btn:active { transform: scale(0.98); }
 
 .card {
   display: flex;
+  align-items: center;
   gap: 12px;
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: var(--radius-card);
   background: var(--red-dark);
 }
 
 .card__thumb {
-  width: 96px;
-  height: 64px;
+  width: 72px;
+  height: 48px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.25);
@@ -197,28 +193,25 @@ h1 {
 .card__body { min-width: 0; }
 
 .card__title {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-size: 14px;
   color: var(--white);
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.controls, .items, .job { display: flex; flex-direction: column; gap: 10px; }
+.controls { display: flex; flex-direction: column; gap: 8px; }
 
 .times {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
 }
 
-.time { flex: 1; display: flex; flex-direction: column; gap: 4px; color: var(--grey-muted); font-size: 11px; }
-
-.time input {
-  width: 100%;
+.time {
+  flex: 1;
+  min-width: 0;
   min-height: 44px;
   border: 0;
   border-radius: var(--radius-pill);
@@ -226,39 +219,50 @@ h1 {
   color: var(--red-bright);
   font-size: 16px;
   text-align: center;
-  box-shadow: inset 0 0 0 1px transparent;
 }
 
-.time input:focus { box-shadow: inset 0 0 0 2px var(--red-bright); }
+.time:focus { box-shadow: inset 0 0 0 2px var(--red-bright); }
 
-.times__to { padding-bottom: 12px; color: var(--grey-muted); }
+.times__to { color: var(--grey-muted); font-size: 12px; }
 
-.qualities { display: flex; flex-wrap: wrap; gap: 8px; }
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--red-dark);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bar::-webkit-scrollbar { display: none; }
 
 .chip {
+  flex: 1 0 auto;
   min-height: 36px;
   padding: 0 12px;
   border: 0;
   border-radius: var(--radius-pill);
-  background: var(--red-dark);
+  background: transparent;
   color: var(--red-bright);
+  white-space: nowrap;
 }
 
-.chip[aria-checked="true"] {
+.chip[aria-checked="true"],
+.chip[aria-pressed="true"] {
   background: var(--red-bright);
   color: #fff;
 }
 
-.items { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.job__track {
-  height: 8px;
+.job-line {
+  height: 4px;
   border-radius: var(--radius-pill);
   background: var(--red-dark);
   overflow: hidden;
 }
 
-.job__fill {
+.job-line__fill {
   height: 100%;
   width: 100%;
   background: var(--red-bright);
@@ -267,15 +271,14 @@ h1 {
   transition: transform 200ms var(--ease);
 }
 
-.job__actions { display: flex; gap: 8px; }
-
-.btn-quiet {
-  background: var(--red-dark);
-  color: var(--red-bright);
-  flex: 0 0 auto;
+.text-btn {
+  align-self: center;
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--grey-muted);
+  font-size: 13px;
 }
-
-.btn-save { flex: 1; }
 
 .sr-only {
   position: absolute;
@@ -308,7 +311,7 @@ html.light-mode .card__title { color: #111; }
 html.light-mode .banner { color: var(--color-error); }
 
 html.light-mode .btn-download,
-html.light-mode .btn-save,
-html.light-mode .chip[aria-checked="true"] { color: #fff; }
+html.light-mode .chip[aria-checked="true"],
+html.light-mode .chip[aria-pressed="true"] { color: #fff; }
 
 html.light-mode .card__thumb { background: rgba(0, 0, 0, 0.08); }
