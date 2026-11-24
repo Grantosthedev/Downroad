@@ -14,55 +14,88 @@
   <link rel="stylesheet" href="/phone.css">
 </head>
 <body>
-  <main class="phone">
-    <header class="top">
-      <img id="sticker" class="sticker" src="/assets/sticker.png" alt="" draggable="false">
-      <div class="top__row">
-        <h1>Downroad</h1>
-        <button id="themeBtn" class="icon-btn" type="button" aria-label="Appearance">
-          <i class="hgi-stroke hgi-moon-02 ui-icon" aria-hidden="true"></i>
-        </button>
-      </div>
-      <p id="footnote" class="footnote">Same Wi-Fi. Nothing to install.</p>
-    </header>
+  <button id="themeBtn" class="theme-btn" type="button" aria-label="Appearance">
+    <i class="hgi-stroke hgi-moon-02 ui-icon ui-icon--button" aria-hidden="true"></i>
+  </button>
 
-    <p id="banner" class="banner" role="alert" hidden></p>
+  <div class="app">
+    <div class="spacer"></div>
+    <img id="sticker" class="sticker" src="/assets/sticker.png" alt="" draggable="false">
 
-    <form id="form" class="form">
-      <div class="url-row">
-        <label class="sr-only" for="url">Video link</label>
-        <input id="url" class="url-input" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a link, my ninja">
-        <button id="clearBtn" class="clear-btn" type="button" aria-label="Clear link" hidden>
-          <i class="hgi-stroke hgi-cancel-01 ui-icon" aria-hidden="true"></i>
-        </button>
-      </div>
+    <div class="path-row">
+      <div class="path-display"><span class="path-display__label"><i class="hgi-stroke hgi-folder-02 ui-icon ui-icon--xs" aria-hidden="true"></i>save to:</span> this phone</div>
+    </div>
 
-      <section id="card" class="card" hidden>
-        <img id="thumb" class="card__thumb" alt="">
-        <div class="card__body">
-          <h2 id="title" class="card__title"></h2>
-          <p id="meta" class="card__meta"></p>
-        </div>
-      </section>
-
-      <div id="items" class="bar" role="group" aria-label="Items" hidden></div>
-
-      <div id="controls" class="controls" hidden>
-        <div class="times">
-          <input id="startTime" class="time" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="Start" placeholder="00:00:00" value="00:00:00">
-          <span class="times__to">to</span>
-          <input id="endTime" class="time" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="End" placeholder="00:00:00" value="00:00:00">
-        </div>
-        <div id="qualities" class="bar" role="radiogroup" aria-label="Quality"></div>
-      </div>
-
-      <button id="goBtn" class="btn-download" type="submit">Check this link</button>
+    <div id="urlRow" class="url-row">
+      <input id="url" class="url-input" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Hurry up and paste a link, my ninja">
+      <button id="clearBtn" class="url-input-clear" type="button" aria-label="Clear URL">
+        <i class="hgi-stroke hgi-cancel-01 ui-icon ui-icon--sm" aria-hidden="true"></i>
+      </button>
+      <button id="goBtn" class="btn-download url-row-hidden" type="button">Download This Shit</button>
       <a id="saveLink" class="btn-download" hidden>Save to this phone</a>
-      <div id="jobTrack" class="job-line" hidden><div id="jobFill" class="job-line__fill"></div></div>
-      <p id="jobText" class="status" hidden></p>
-      <button id="cancelBtn" class="text-btn" type="button" hidden>Cancel</button>
-    </form>
-  </main>
+    </div>
+    <div id="urlHint" class="url-hint"></div>
+
+    <div class="controls-row">
+      <div class="clip-range">
+        <div class="time-input-wrap" id="startWrap">
+          <input id="startTime" class="time-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="Clip start" placeholder="00:00:00" value="00:00:00" disabled>
+          <button id="startClear" class="time-input-clear" type="button" aria-label="Clear start time" tabindex="-1">
+            <i class="hgi-stroke hgi-cancel-01 ui-icon" aria-hidden="true"></i>
+          </button>
+        </div>
+        <span class="clip-range__separator">to</span>
+        <div class="time-input-wrap" id="endWrap">
+          <input id="endTime" class="time-input" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="Clip end" placeholder="00:00:00" value="00:00:00" disabled>
+          <button id="endClear" class="time-input-clear" type="button" aria-label="Clear end time" tabindex="-1">
+            <i class="hgi-stroke hgi-cancel-01 ui-icon" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      <div class="quality-anchor">
+        <div id="qualitySelector" class="quality-bar">
+          <div class="pill-indicator" id="pillIndicator"></div>
+          <button id="qualityBest" class="quality-option active" type="button" data-quality="best">
+            <span id="qualityBtnLabel">Video / Photo</span>
+            <i id="qualityChevron" class="hgi-stroke hgi-arrow-down-01 quality-chevron" aria-hidden="true"></i>
+          </button>
+          <button id="qualityAudio" class="quality-option" type="button" data-quality="audio">Audio Only</button>
+        </div>
+        <div id="qualityDropdown" class="quality-dropdown">
+          <div id="qualityDropdownList" class="quality-dropdown__list"></div>
+        </div>
+      </div>
+    </div>
+    <div id="qualityBackdrop" class="quality-backdrop"></div>
+
+    <div id="videoCard" class="video-card">
+      <div class="video-card__thumb-wrap">
+        <img id="thumb" class="video-card__thumb" alt="">
+      </div>
+      <div class="video-card__info">
+        <div id="title" class="video-card__title"></div>
+        <div id="meta" class="video-card__meta"></div>
+      </div>
+      <div id="videoCardAction" class="video-card__action"></div>
+    </div>
+
+    <div id="carouselCard" class="carousel-card">
+      <div class="carousel-card__header">
+        <span id="carouselTitle" class="carousel-card__title"></span>
+        <span id="carouselCount" class="carousel-card__count"></span>
+      </div>
+      <div id="carouselGrid" class="carousel-card__grid"></div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+
+  <div id="activity" class="activity-toast" role="status">
+    <i class="hgi-stroke hgi-loading-03 activity-toast__spinner" aria-hidden="true"></i>
+    <span id="activityText"></span>
+    <button id="cancelBtn" class="activity-toast__cancel" type="button" hidden>Cancel</button>
+  </div>
+
   <script src="/phone.js"></script>
 </body>
 </html>
